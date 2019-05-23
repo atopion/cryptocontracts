@@ -2,7 +2,7 @@
 
 ## Description ##
 
-This document provides a documentation and explaination about the core functions files located in this directory.
+This document provides a documentation and explanation about the core functions files located in this directory.
 Purpose of these files is to have a single implementation of the GUIs core functions in one place, so that every GUI implementation can easily use them. The core functions are available in different programming languages, currently in:
 
 `    - Python (core_functions.py) `<br>
@@ -47,3 +47,16 @@ Compares the two checksums for equality.
 
 #### Returns: ####
 `1` if checksum_a and checksum_b are given and equal, `0` otherwise.
+
+---
+
+### Method: Core.lookup ###
+    Core.lookup(checksum)
+Looks up a specific checksum in the blockchain for validation.
+
+#### Parameters: ####
+
+    checksum: The checksum to look up.
+
+#### Returns: ####
+A Blockchain.Transmission object containing the existing transmission from the blockchain if it exists, `None` otherwise.

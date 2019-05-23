@@ -15,8 +15,10 @@ Sebastian Rahe, Tobias Haar, René Lars Wetzelt, Merlin Bleichert, Stefan Pfeiff
 |--------------------------------|---------------|-----------|
 | *Peer-to-Peer Communication* | 60 | Rene |
 | *Storing and retrieving requests* | 50 | Stefan |
+| *Person registry* | 10 | Stefan |
 | *Verification* | 80 | Tobi |
-| *Block mining* | 50 | Merlin |
+| *(Block mining)* | 50 | Merlin |
+| *Signing* | 50 | Merlin |
 
 <br>
 
@@ -32,10 +34,9 @@ Sebastian Rahe, Tobias Haar, René Lars Wetzelt, Merlin Bleichert, Stefan Pfeiff
 
 | Group: Standards | Est. Workload | Assignees |
 |------------------|---------------|-----------|
-| *Necessary pdf standard | 10 | Stefan |
-| *Which hash algorithm to use?* | 30 | Timon|
-| *Which types of official documents are <br> supported (modifications necessary)?* | 30 | Rene |
-| *How to pay miners?* | 10 | Merlin |
+| *Necessary pdf standard* | 10 | Stefan |
+| *Which hash algorithm to use?* | 30 | Timon |
+| *Extendable to different data types?* | 10 | Rene |
 
 <br>
 
@@ -43,6 +44,7 @@ Sebastian Rahe, Tobias Haar, René Lars Wetzelt, Merlin Bleichert, Stefan Pfeiff
 |----------------------------|---------------|-----------|
 | *Single party contracts (e. g. testaments)* | 10 | Sebastian |
 | *Preventing 51%: How to restrict the government?* | 20 | Sebastian |
+| *Exploits?* | 20 | Sebastian |
 | *Risks of Shor’s algorithm* | 30 | Timon |
 | *Continue operations in the era of quantum computers* | 30 | Timon |
 | *Optimization for neutrino-based networks* | 10 | Timon |
