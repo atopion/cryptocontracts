@@ -21,18 +21,19 @@ Even though it is possible to define functions outside of a class in a couple of
 ---
 
 ### Method: Core.checksum ###
-    Core.checksum(path=None, bytes=None, str=None)
-Produces the checksum from a given file or bytearray. Algorithm: tba
+    Core.checksum(path=None, s=None, bytes=None)
+Produces the checksum from a given file, string or bytearray. Algorithm: ```whirlpool```
 
 #### Parameters: ####
 
     path:  path to the file to produce the checksum from.
+    s:     String to produce the checksum from.
     bytes: byte array to produce the checksum from.
-    str:   String to produce the checksum from.
 
 #### Returns: ####
 
-an integer which is the checksum of the given data or a random number if no data is given.
+an integer which is the checksum of the given data or a random number if no data is given. If two or more arguments are given, the checksum of the first given argument is returned.\
+If the ```path``` argument is given but the referenced file could not be found (e.g. file does not exists or is a directory) ```-1``` is returned.
 
 ---
 
