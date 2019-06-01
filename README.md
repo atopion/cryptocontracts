@@ -66,7 +66,7 @@ Sebastian Rahe, Tobias Haar, René Lars Wetzelt, Merlin Bleichert, Stefan Pfeiff
 |---------------------|---------------|-----------|
 | *Group meetings* | 60 | All |
 | *Documentation documents* | 60 | All |
-| *PowerPoint Presentation* | 30 | All |
-| *Talk preparation* | 30 | All |
+| *PowerPoint Presentations* | 60 | All |
+| *Talk preparations* | 60 | All |
 | *Use case example* | 30 | All |
 
