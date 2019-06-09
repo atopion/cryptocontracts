@@ -1,0 +1,24 @@
+
+
+;; hash methods in order, ':' concat
+[hash]
+documents=blake:whirlpool:sha3_512
+
+
+;; blockchain database location on filesystem (will be created if missing)
+[database]
+path=/tmp/cryptocontracts/
+
+
+;; public key registry
+;; GET methods are public, others require basic auth to simulate government control
+[key-api]
+url=https://api.zipixx.com/cryptocontracts/
+auth=
+
+;; public server from which to request initial ip list for network join
+[ip-api]
+url=https://api.zipixx.com/cryptocontracts/
+auth=
+
+
