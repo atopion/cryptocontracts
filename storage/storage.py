@@ -1,7 +1,8 @@
 import plyvel
 import json
 
-from storage.block import Block
+#from storage.block import Block
+from core.core import Transmission
 from storage import config
 
 db = plyvel.DB(config.get('database', 'path'), create_if_missing=True)
@@ -9,23 +10,21 @@ db = plyvel.DB(config.get('database', 'path'), create_if_missing=True)
 
 def get_head():
 	return db.get('head'.encode('utf-8')).decode('utf-8')
-def set_head(blockId):
+def _set_head(blockId):
 	db.put('head'.encode('utf-8'), blockId.encode('utf-8'))
 
 
 def put_block(block):
-	if not isinstance(block, Block):
-		raise TypeError('Not a Block object')
+	if not isinstance(block, Transmission):
+		raise TypeError('Not a Core.Transmission block object')
 
-	assert block.prevBlockId == get_head()
+	assert block.previous_hash == get_head()
 
-	db.put(block.blockId.encode('utf-8'), block.json().encode('utf-8'))
-	set_head(block.blockId)
+	db.put(block.transmission_hash.encode('utf-8'), block.to_json().encode('utf-8'))
+	_set_head(block.transmission_hash)
 	
 def get_block(blockId):
-	jb = json.loads(db.get(blockId.encode('utf-8')).decode('utf-8'))
-	b = Block(**jb)
-	return b
+	return Transmission.from_json(db.get(blockId.encode('utf-8')).decode('utf-8'))
 
 def get_subchain(targetBlockId):
 	target = get_block(targetBlockId)
@@ -34,20 +33,19 @@ def get_subchain(targetBlockId):
 
 	curBlock = get_block(get_head())
 	chain = []
-	while curBlock.blockId != targetBlockId:
+	while curBlock.transmission_hash != targetBlockId:
 		chain.append(curBlock)
-		curBlock = get_block(curBlock.prevBlockId)
+		curBlock = get_block(curBlock.previous_hash)
 	
 	chain.append(target)
 	return chain
 
 def init_chain():
 	#TODO put proper root block
-	set_head('ROOT')
+	_set_head('ROOT')
 
-
+def print_chain(chain):
+	print('[%s]' % ','.join([block.to_json() for block in chain]) )
 def print_all():
-	for key, value in db:
-		print('%s: %s'%(key.decode('utf-8'),value.decode('utf-8')))
-
+	print('[%s]' % ','.join([value.decode('utf-8') for key,value in db if key.decode('utf-8') != 'head']) )
 

@@ -1686,7 +1686,7 @@ class Transmission:
 
     def sign_self(self):
         prev = bytearray(self.previous_hash, "utf-8")
-        time = bytearray(self.timestamp)
+        time = bytearray(self.timestamp, "utf-8")
         pubs = bytearray("".join(self.pub_keys), "utf-8")
         hash = bytearray(self.hash, "utf-8")
         sign = bytearray(self.signed_hash, "utf-8")
@@ -1695,7 +1695,7 @@ class Transmission:
 
     def check_self(self):
         prev = bytearray(self.previous_hash, "utf-8")
-        time = bytearray(self.timestamp)
+        time = bytearray(self.timestamp, "utf-8")
         pubs = bytearray("".join(self.pub_keys), "utf-8")
         hash = bytearray(self.hash, "utf-8")
         sign = bytearray(self.signed_hash, "utf-8")
@@ -1715,7 +1715,7 @@ class Transmission:
         return json.dumps(x)
 
     @staticmethod
-    def from_json(self, json_str: str):
+    def from_json(json_str: str):
         x = json.loads(json_str)
         transmission = Transmission()
         transmission.previous_hash = x["previous_hash"]
@@ -1724,6 +1724,7 @@ class Transmission:
         transmission.hash = x["hash"]
         transmission.signed_hash = x["hash"]
         transmission.transmission_hash = x["transmission_hash"]
+        return transmission
 
     def is_valid(self):
         if self.previous_hash is None or self.previous_hash == "":
