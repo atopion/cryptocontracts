@@ -1,8 +1,8 @@
 import plyvel
 import json
 
-from block import Block
-import config
+from storage.block import Block
+from storage import config
 
 db = plyvel.DB(config.get('database', 'path'), create_if_missing=True)
 
@@ -35,10 +35,10 @@ def get_subchain(targetBlockId):
 	curBlock = get_block(get_head())
 	chain = []
 	while curBlock.blockId != targetBlockId:
-		chain.append(curBlock.json())
+		chain.append(curBlock)
 		curBlock = get_block(curBlock.prevBlockId)
 	
-	chain.append(target.json())
+	chain.append(target)
 	return chain
 
 def init_chain():
@@ -49,15 +49,5 @@ def init_chain():
 def print_all():
 	for key, value in db:
 		print('%s: %s'%(key.decode('utf-8'),value.decode('utf-8')))
-
-
-#init_chain()
-#put_block(Block('id1', ['k1','k2'], 'doc', 'docs', 'ROOT', 'pbs'))
-#put_block(Block('id2', ['k1','k2'], 'doc', 'docs', 'id1', 'pbs'))
-#put_block(Block('id3', ['k1','k2'], 'doc', 'docs', 'id2', 'pbs'))
-
-#print_all()
-#print(str(get_subchain('id1')))
-
 
 
