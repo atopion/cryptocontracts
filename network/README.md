@@ -11,4 +11,5 @@ server = server_peer.ServerPeer()
 from network import client_peer
 
 client = client_peer.Peer(*server_address*)
+
 client.connectToNet()
