@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from core.core import Core
 from storage import storage, config
 
