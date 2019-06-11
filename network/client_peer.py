@@ -39,11 +39,11 @@ class Peer:
     """
     
     activePeers = []
-    serverAddress = "127.0.0.1"
+    serverAddress = None
     sock = None
     
-    def __init__(self):
-        pass
+    def __init__(self,addr):
+        self.serverAddress = addr
     
     
     def commandHandler(self):
