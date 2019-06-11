@@ -1,4 +1,4 @@
-#####First solution for a network. Still based on Server-Client model. For now , Server address has to be given when creating a Client Peer and wanting to connect to the network.
+##### First solution for a network. Still based on Server-Client model. For now , Server address has to be given when creating a Client Peer and wanting to connect to the network.
 
 ### How to create the server peer for the network:
 
