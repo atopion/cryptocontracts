@@ -7,7 +7,7 @@ Currently, making a contract with someone or a company always means to have some
 Our proposed solution to this problem will use the abilities of the blockchain to protect documents against manipulation from either side and make them digitally signable to eliminate the need for document to exist on paper. This can be done by calculating a checksum of the document with a specific algorithm and cryptographically signing this checksum by each party. These three numbers will then be stored decentralized using a blockchain. Thereby the checksum is unchangeably saved and protected against manipulations and can later be retrieved to verify the documents if uncertainties occur. Additionally, since it is a work in progress, we may include other features and functions which arise from the project.
 
 ### Participants: ###
-Sebastian Rahe, Tobias Haar, René Lars Wetzelt, Merlin Bleichert, Stefan Pfeiffer and Timon Vogt
+Sebastian Rahe, Tobias Haar, René Lars Wetzelt, Stefan Pfeiffer and Timon Vogt
 
 ### Features (proposed): ###
 
@@ -17,15 +17,14 @@ Sebastian Rahe, Tobias Haar, René Lars Wetzelt, Merlin Bleichert, Stefan Pfeiff
 | *Storing and retrieving requests* | 50 | Stefan |
 | *Person registry* | 10 | Stefan |
 | *Verification* | 80 | Tobi |
-| *(Block mining)* | 50 | Merlin |
-| *Signing* | 50 | Merlin |
+| *Signing* | 50 | Sebastian |
 
 <br>
 
 | Group: Common User Interface | Est. Workload | Assignees |
 |------------------------------|---------------|-----------|
 | *User client GUI: Desktop* | 60 | Tobi |
-| *User client GUI: App* | 60 | Merlin | 
+| *User client GUI: App* | 60 | TBA | 
 | *User client GUI: Website* | 50 | Stefan |
 | *User client basic functions* | 60 | Timon |
 | *Court GUI for verification* | 50 | Stefan |
@@ -56,7 +55,7 @@ Sebastian Rahe, Tobias Haar, René Lars Wetzelt, Merlin Bleichert, Stefan Pfeiff
 | *Basic functionality test: Node* | 20 | Sebastian |
 | *Basic functionality test: Network* | 20 | Sebastian |
 | *Basic functionality test: HPC* | 20 | Sebastian |
-| *Security tests: Hash algorithm* | 30 | Merlin |
+| *Security tests: Hash algorithm* | 30 | TBA |
 | *Security tests: Malicious messages* | 30 | Rene |
 | *Security tests: No ASICs possible* | 30 | Timon |
 

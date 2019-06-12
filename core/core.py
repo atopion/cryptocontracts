@@ -3,6 +3,9 @@ import os
 import numpy as np
 import time
 import json
+import requests
+
+import storage.storage
 
 
 class HashAlg:
@@ -1763,16 +1766,16 @@ class Server:
     def __init__(self):
         # Dummy implementation, to be replaced by calls to the actual network script
         self.server = "A server ..."
-        self.graph = []
+        head = storage.storage.get_head()
         # connect to network, retrieve latest graph
         # now wait for transmissions from clients, verify them and append them to local chain
 
     def got_transmission(self, transmission: Transmission):
         # don't resend if transmission is already in graph
-        # TODO modify to not check all
-        for i in range(len(self.graph)-1, 0, -1):
-            if transmission.compare(self.graph[i]):
-                return
+
+        if storage.storage.exists(transmission.transmission_hash):
+            return
+
 
         if not Core.verifyTransmission(transmission):
             # send REFUSE package to network
@@ -1786,8 +1789,7 @@ class Server:
                 # send REFUSE package to network
                 return
 
-        self.graph.append(transmission)
-        # save graph to disk
+        storage.storage.put_block(transmission)
 
         # send SUCCESS package to network
         # send the transmission to all known peers in network
@@ -1869,7 +1871,7 @@ class Core:
 
         transmission = Transmission()
         transmission.previous_hash = previous_hash
-        transmission.timestamp = hex(time.time_ns())[2:]
+        transmission.timestamp = hex(int(time.time()))[2:]
         transmission.pub_keys = pub_keys
         transmission.hash = document_hash
         transmission.signed_hash = Signing.sign(document_hash, pub_keys)
@@ -1887,7 +1889,10 @@ class Core:
         if not transmission.check_self():
             return 0
 
-        # TODO: check existence of Public keys
+        for key in transmission.pub_keys:
+            r = requests.get('https://api.zipixx.com/cryptocontracts/', header="Content-Type: application/json", data="{key: " + key + "}")
+            if not r.status_code == 200:
+                return 0
 
         return 1
 
