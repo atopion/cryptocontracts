@@ -135,7 +135,7 @@ class ServerPeer:
         
         p = ""
         for peer in self.activePeers:
-            p = p + peer + ", "
+            p = p + peer + ","
         return p
     
     
