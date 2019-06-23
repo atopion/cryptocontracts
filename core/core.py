@@ -4,11 +4,10 @@ import time
 import json
 import requests
 
-import storage.storage
 from network.server_peer import ServerPeer
 from network.client_peer import Peer
 from core.CryptoHashes import CryptoHashes
-
+from storage import storage
 
 SUCCESS = 1
 FAIL = 0
@@ -91,13 +90,16 @@ class Transmission:
 class Signing:
     # Dummy
 
+    OWN_PUBLIC_KEY = "public key"
+    OWN_PRIVATE_KEY = "private key"
+
     @staticmethod
     def sign(value, keys):
-        return ""
+        return value
 
     @staticmethod
     def unsign(value, keys):
-        return ""
+        return value
 
 
 class Server:
@@ -105,10 +107,12 @@ class Server:
 
     def __init__(self):
         # Dummy implementation, to be replaced by calls to the actual network script
-        self.server = ServerPeer()
+        self.server = ServerPeer(send_sync_message=self.react_to_sync_request, send_subchain_message=self.react_to_subchain_request)
+        print("INIT")
         # connect to network, retrieve latest graph
         # now wait for transmissions from clients, verify them and append them to local chain
-        self.synchronize()
+        #self.synchronize()
+        self.server.bind()
 
     def synchronize(self):
         # Synchronizing:
@@ -146,9 +150,9 @@ class Server:
             succeeded = False
             for i in range(5):
                 rnd = random.randint(0, len(maj["list"])-1)
-                subchain = self.server.requestSubchain(maj["list"][rnd], storage.storage.get_head().unsigned_transmission_hash())
+                subchain = self.server.request_subchain(maj["list"][rnd], storage.get_head().unsigned_transmission_hash())
                 # subchain: list of transmissions [old -> new]
-                if not Core.compare(subchain[0].previous_hash, storage.storage.get_head().unsigned_transmission_hash()):
+                if not Core.compare(subchain[0].previous_hash, storage.get_head().unsigned_transmission_hash()):
                     continue
 
                 failed = False
@@ -175,13 +179,27 @@ class Server:
             return FAIL
 
         for sub in result:
-            storage.storage.put_block(sub)
+            storage.put_block(sub)
         return SUCCESS
+
+    def react_to_sync_request(self, conn):
+        t = storage.get_block(storage.get_head())
+        x = {
+            "public_key": Signing.OWN_PUBLIC_KEY,
+            "transmission_hash": t.unsigned_transmission_hash(),
+            "transmission_hash_signed": Signing.sign(t.unsigned_transmission_hash(), Signing.OWN_PRIVATE_KEY)
+        }
+        self.server.send_sync_request_answer(conn, x)
+
+    def react_to_subchain_request(self, conn, transmission_hash):
+        subchain = storage.get_subchain(transmission_hash).reverse()
+        self.server.send_subchain(conn, subchain)
+
 
     def got_transmission(self, transmission: Transmission):
         # don't resend if transmission is already in graph
 
-        if storage.storage.exists(transmission.transmission_hash):
+        if storage.exists(transmission.transmission_hash):
             return
 
         if not Core.verifyTransmission(transmission):
@@ -190,16 +208,16 @@ class Server:
 
         # check if previous hash is correct
         #if not Core.compare(transmission.previous_hash, self.graph[-1].transmission_hash):
-        if not isinstance(storage.storage.get_head(), Transmission) or \
-                not Core.compare(transmission.previous_hash, storage.storage.get_head().transmission_hash):
+        if not isinstance(storage.get_head(), Transmission) or \
+                not Core.compare(transmission.previous_hash, storage.get_head().transmission_hash):
             # maybe the graph is not the latest version. Get latest graph and try again
             # getLatestGraph()
-            if not isinstance(storage.storage.get_head(), Transmission) or \
-                    not Core.compare(transmission.previous_hash, storage.storage.get_head().transmission_hash):
+            if not isinstance(storage.get_head(), Transmission) or \
+                    not Core.compare(transmission.previous_hash, storage.get_head().transmission_hash):
                 # send REFUSE package to network
                 return
 
-        storage.storage.put_block(transmission)
+        storage.put_block(transmission)
 
         # send SUCCESS package to network
         # send the transmission to all known peers in network
@@ -208,9 +226,10 @@ class Server:
 class Client:
     # Dummy TODO
 
-    def __init__(self):
+    def __init__(self, addr=None):
         # Dummy implementation, to be replaced by calls to the actual network script
-        self.server_address = ""
+        self.client = Peer(addr=addr)
+        self.client.connectToNet()
 
     def place_transmission(self, pub_keys: list, document_hash: str):
         # connect to server and get latest transmission
@@ -308,5 +327,6 @@ class Core:
 
 
 if __name__ == "__main__":
-    Core()
+    #Core()
+    Server()
 

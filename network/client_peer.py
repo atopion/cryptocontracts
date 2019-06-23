@@ -11,6 +11,8 @@ import threading
 import os
 import sys
 import random
+import json
+
 
 class Peer:
     """ A class representing a Peer of the network which connects to the server
@@ -92,7 +94,7 @@ class Peer:
                     
             
         else:
-            self.fixedServer == True
+            self.fixedServer = True
             self.sockClient.connect((self.serverAddress,10000))
             print("connected to server")
     
@@ -103,17 +105,25 @@ class Peer:
         the commands 'exit', 'quit' and 'close' end the connection.
         """
         while True:
-            i = input()
-            if i == "peers":
-                p = self.getActivePeers()
-                print(p)
-            else:
-                if i == "exit" or i == "quit" or i == "close":
-                    self.disconnectFromNet()
-#                distinguish between peers and conenctions
-#            else:
-#                for connection in self.connections:
-#                    connection.send(bytes(str(i),'utf-8'))
+            try:
+
+                i = input()
+                if i == "peers":
+                    p = self.getActivePeers()
+                    print(p)
+                elif i == "sync":
+                    self.sockClient.send(b'\x31')
+                else:
+                    if i == "exit" or i == "quit" or i == "close":
+                        self.disconnectFromNet()
+#                   distinguish between peers and conenctions
+#              else:
+#                   for connection in self.connections:
+#                      connection.send(bytes(str(i),'utf-8'))
+            except EOFError:
+                os._exit(1)
+            except KeyboardInterrupt:
+                os._exit(1)
     
     
     def connectionHandler(self, conn, addr):
@@ -163,18 +173,29 @@ class Peer:
         serverThread.start()
         
         while True:
-            data = self.sockClient.recv(1024)
-            if not data:
-                break
-            
-            # look for specific prefix indicating the list of active peers
-            if data[0:1] == b'\x11':
-                self.activePeers = str(data[1:], "utf-8").split(",")[:-1]
-                self.storeAddresses()   # store addresses of active peers in file
-                
-            # if no prefix consider data a message and print it
-            else:
-                print(str(data,'utf-8'))
+            try:
+                data = self.sockClient.recv(1024)
+
+                if not data:
+                    break
+
+                mode = int(bytes(data).hex()[0:2])
+                # look for specific prefix indicating the list of active peers
+                if mode == 11:
+                    self.activePeers = str(data[1:], "utf-8").split(",")[:-1]
+                    self.storeAddresses()   # store addresses of active peers in file
+
+                elif mode == 32:
+                    print("Got sync data\n")
+                    print(json.loads(str(data[1:])[2:-1]))
+
+                # if no prefix consider data a message and print it
+                else:
+                    print(str(data,'utf-8'))
+
+            except ConnectionResetError or ConnectionAbortedError:
+                print("Connection closed.")
+                os._exit(1)
         
         self.fixedServer = False
         self.chooseConnection()
@@ -278,6 +299,13 @@ class Peer:
         last_addresses.close()
             
     
-    
-#client = Peer() 
-#client.connectToNet()  
+if __name__ == '__main__':
+
+    if len(sys.argv) < 2:
+        client = Peer()
+        client.connectToNet()
+
+    else:
+        arg1 = sys.argv[1]
+        client = Peer(addr=arg1)
+        client.connectToNet()
