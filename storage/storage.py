@@ -6,6 +6,10 @@ import json
 import core.core
 from storage import config
 
+# TODO debugging controls: remove this
+plyvel.destroy_db(config.get('database', 'path'))
+
+
 db = plyvel.DB(config.get('database', 'path'), create_if_missing=True)
 
 def get_head():
@@ -39,6 +43,9 @@ def get_subchain(targetBlockId):
 	
 	chain.append(target)
 	return chain
+
+def exists(blockId):
+	return db.get(blockId.encode('utf-8'))is not None
 
 def init_chain():
 	#TODO put proper root block
