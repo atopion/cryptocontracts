@@ -6,8 +6,16 @@ Created on Wed Jun  5 23:47:34 2019
 @author: rene
 """
 
+#import sys
+#sys.path.append("/home/rene/Desktop/blockchain_project/cryptocontracts/core")
+#sys.path.append("/home/rene/Desktop/blockchain_project/cryptocontracts/storage")
+
 import socket
 import threading
+import os
+import json
+
+import core
 
 
 class ServerPeer:
@@ -39,7 +47,13 @@ class ServerPeer:
     connections = []
     active_peers = []
     
-    def __init__(self):
+    #cb_list_chain = None
+    #cb_send_sync_message = None
+    #cb_send_subchain_message = None
+    synchronization_finished_event = threading.Event()
+    synchronization_subchain_event = threading.Event()
+    
+    def __init__(self, list_chain=None, send_sync_message=None, send_subchain_message=None, start_sync=None):
         """ Constructor that initiats general server functions
         
         A socket object is created, bind and starts listening to connections.
@@ -59,14 +73,25 @@ class ServerPeer:
         hostaddr = socket.gethostbyname(hostname)
         self.active_peers.append(hostaddr)
         
+        self.cb_list_chain = list_chain
+        self.cb_start_sync = start_sync
+        self.cb_send_sync_message = send_sync_message
+        self.cb_send_subchain_message = send_subchain_message
+        
         print("Server running...")
         
         command_thread = threading.Thread(target=self.command_handler)
         command_thread.daemon = True
         command_thread.start()
         
+        self.synchronization_request_answers = []
+        self.synchronization_chain = None
+        
+        
+    def bind(self):
+        
         while True:
-            conn,addr = sock.accept()
+            conn,addr = self.sock.accept()
             thread = threading.Thread(target=self.connection_handler, args=(conn,addr))
             thread.daemon = True
             thread.start()
@@ -83,12 +108,24 @@ class ServerPeer:
         """
         
         while True:
-            i = input()
-            if i == "peers":
-                self.get_active_peers()
-            else:
-                for connection in self.connections:
-                    connection.send(bytes(str(i),'utf-8'))
+            try:
+                
+                i = input()
+                if i == "peers":
+                    self.get_active_peers()
+                elif i == "list":
+                    if self.cb_list_chain is not None:
+                        self.cb_list_chain()
+                elif i == "sync":
+                    self.cb_start_sync()
+                else:
+                    for connection in self.connections:
+                        connection.send(bytes(str(i),'utf-8'))
+                        
+            except EOFError:
+                os._exit(1)
+            except KeyboardInterrupt:
+                os._exit(1)
                     
     
     def connection_handler(self, conn, addr):
@@ -105,16 +142,49 @@ class ServerPeer:
         """
         
         while True:
-            data = conn.recv(1024)
-            for connection in self.connections:
-                connection.send(bytes(data))    
-            if not data:
-                print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
-                self.connections.remove(conn)
-                self.active_peers.remove(addr[0])
-                conn.close()
-                self.send_active_peers()
-                break
+            try:
+                
+                data = conn.recv(1024)
+                if not data:
+                    print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
+                    self.connections.remove(conn)
+                    self.active_peers.remove(addr[0])
+                    conn.close()
+                    self.send_active_peers()
+                    break
+                
+                mode = int(bytes(data).hex()[0:2])
+                if mode == 31:
+                    # Synchronization request
+                    if self.cb_send_sync_message is not None:
+                        self.cb_send_sync_message(conn)
+
+                elif mode == 32:
+                    # Synchronization answer
+                    data = json.loads(str(data[1:])[2:-1])
+                    data["conn"] = conn
+                    self.synchronization_request_answers.append(data)
+                    if len(self.synchronization_request_answers) == len(self.connections):
+                        self.synchronization_finished_event.set()
+
+                elif mode == 33:
+                    # Subchain request
+                    hash = str(data[1:])[2:-1]
+                    if self.cb_send_subchain_message is not None:
+                        self.cb_send_subchain_message(conn, hash)
+
+                elif mode == 34:
+                    # Subchain answer
+                    self.synchronization_chain = core.core.Transmission.list_from_json(str(data[1:])[2:-1].replace("\\\\", "\\"))
+                    self.synchronization_subchain_event.set()
+
+                else:
+                    for connection in self.connections:
+                        connection.send(bytes(data))
+                        
+            except ConnectionResetError or ConnectionAbortedError:
+                print("Connection closed.")
+                return
     
 #    def connect_to_net(self):
 #        pass
@@ -176,6 +246,35 @@ class ServerPeer:
         """
         
         pass
+    
+    def send_sync_request_answer(self, conn, obj):
+        conn.send(b'\x32' + bytes(json.dumps(obj), "utf-8"))
+
+    def send_synchronize_request(self):
+        self.synchronization_request_answers = []
+        self.synchronization_finished_event = threading.Event()
+        for conn in self.connections:
+            conn.send(b'\x31')
+
+        self.synchronization_finished_event.wait(30)
+        return self.synchronization_request_answers
+
+    def send_subchain(self, conn, obj):
+        conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8"))
+
+    def request_subchain(self, msg, hash):
+        self.synchronization_chain = None
+        msg["conn"].send(b'\x33' + bytes(hash, "utf-8"))
+
+        self.synchronization_subchain_event.wait(30)
+        self.synchronization_subchain_event = threading.Event()
+        return self.synchronization_chain
+
+
+if __name__ == '__main__':
+    server = ServerPeer()
+    
+    
     
     
 #server = ServerPeer()
