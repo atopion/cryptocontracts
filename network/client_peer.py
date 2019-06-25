@@ -6,11 +6,18 @@ Created on Wed Jun  5 23:32:58 2019
 @author: rene
 """
 
+import sys
+sys.path.append("/home/rene/Desktop/blockchain_project/cryptocontracts/core")
+
 import socket
 import threading
 import os
 import sys
 import random
+import json
+
+import core
+
 
 class Peer:
     """ A class representing a Peer of the network which connects to the server
@@ -76,8 +83,20 @@ class Peer:
     sock_server = None
     sock_client = None
     
+    synchronization_finished_event = threading.Event()
+    synchronization_subchain_event = threading.Event()
     
-    def __init__(self,addr=None):
+    
+    def __init__(self,addr=None, list_chain=None, send_sync_message=None, send_subchain_message=None, start_sync=None):
+        
+        self.cb_list_chain = list_chain
+        self.cb_start_sync = start_sync
+        self.cb_send_sync_message = send_sync_message
+        self.cb_send_subchain_message = send_subchain_message
+
+        self.synchronization_chain = []
+        self.synchronization_request_answers = []
+        
         if addr is None:
             if os.path.isdir("./addresses") and os.path.isfile("./addresses/last_active_addresses.txt"):
                 last_addresses = open("./addresses/last_active_addresses.txt")
@@ -132,21 +151,31 @@ class Peer:
         the commands 'exit', 'quit' and 'close' end the connection.
         """
         while True:
-            i = input()
-            if i == "peers":
-                p = self.get_active_peers()
-                print(p)
-            else:
-                if i == "exit" or i == "quit" or i == "close":
+            try:
+                
+                i = input()
+                if i == "peers":
+                    p = self.get_active_peers()
+                    print(p)
+                elif i == "exit" or i == "quit" or i == "close":
                     self.disconnect_from_net()
-                    
+                elif i == "connections":
+                    p = self.get_connections()
+                    print(p)
+                elif i == "sync":
+                    if self.cb_start_sync is not None:
+                        self.cb_start_sync()
+                elif i == "list":
+                    if self.cb_list_chain is not None:
+                        self.cb_list_chain()
                 else:
-                    if i == "connections":
-                        p = self.get_connections()
-                        print(p)
-                    else:
-                        for connection in self.connected_peers:
-                            connection.send(bytes(str(i),'utf-8'))
+                    for connection in self.connected_peers:
+                        connection.send(bytes(str(i),'utf-8'))
+                        
+            except EOFError:
+                os._exit(1)
+            except KeyboardInterrupt:
+                os._exit(1)  
     
     
     def incoming_connection_handler(self, conn, addr):
@@ -297,20 +326,56 @@ class Peer:
         """
         
         while True:
-            data = self.sock_client.recv(1024)
-            
-            if not data:
-                self.fixed_server = False   # When server peer goes offline, this peer needs to connect to another peer
-                self.choose_connection()
-            
-            # look for specific prefix indicating the list of active peers
-            if data[0:1] == b'\x11':
-                self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")[:-1]
-                self.store_addresses()   # store addresses of active peers in file
+            try:
                 
-            # if no prefix consider data a message and print it
-            else:
-                print(str(data,'utf-8'))
+                data = self.sock_client.recv(1024)
+                
+                if not data:
+                    self.fixed_server = False   # When server peer goes offline, this peer needs to connect to another peer
+                    self.choose_connection()
+                
+                print("RECIEVED: ", data)
+                mode = int(bytes(data).hex()[0:2])
+                
+                # look for specific prefix indicating the list of active peers
+                if mode == 11:
+                    self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")[:-1]
+                    self.store_addresses()   # store addresses of active peers in file
+                    
+                    
+                elif mode == 31:
+                        # Synchronization request
+                        if self.cb_send_sync_message is not None:
+                            self.cb_send_sync_message(self.sock_client)
+    
+                elif mode == 32:
+                    # Synchronization answer
+                    data = json.loads(str(data[1:])[2:-1])
+                    data["conn"] = self.sock_client
+                    self.synchronization_request_answers.append(data)
+                    # TODO multiple connections
+                    #if len(self.synchronization_request_answers) == len(self.connected_peers):
+                    #    self.synchronization_finished_event.set()
+                    self.synchronization_finished_event.set()
+    
+                elif mode == 33:
+                    # Subchain request
+                    hash = str(data[1:])[2:-1]
+                    if self.cb_send_subchain_message is not None:
+                        self.cb_send_subchain_message(self.sock_client, hash)
+    
+                elif mode == 34:
+                    # Subchain answer
+                    self.synchronization_chain = core.core.Transmission.list_from_json(str(data[1:])[2:-1].replace("\\\\", "\\"))
+                    self.synchronization_subchain_event.set()
+                # if no prefix consider data a message and print it
+                else:
+                    print(str(data,'utf-8'))
+                    
+            except ConnectionResetError or ConnectionAbortedError:
+                print("Connection closed.")
+                os._exit(1)
+                
         
     def request_graph(self, address):
         """Sends request for latest version of graph to peer specified in address
@@ -358,7 +423,45 @@ class Peer:
         last_addresses.write(self.get_active_peers())
         last_addresses.close()
             
+        
+        
+        
+    def send_synchronize_request(self):
+        print("SEND REQUEST")
+        # TODO multiple connections
+        #for conn in self.connected_peers:
+        #    conn.send(b'\x31')
+        self.sock_client.send(b'\x31')
+
+        self.synchronization_finished_event.wait(30)
+        res = self.synchronization_request_answers
+        self.synchronization_request_answers = []
+        self.synchronization_finished_event = threading.Event()
+        return res
+
+    def send_sync_request_answer(self, conn, obj):
+        conn.send(b'\x32' + bytes(json.dumps(obj), "utf-8"))
+
+    def request_subchain(self, msg, hash):
+        self.synchronization_chain = None
+        msg["conn"].send(b'\x33' + bytes(hash, "utf-8"))
+
+        self.synchronization_subchain_event.wait(30)
+        self.synchronization_subchain_event = threading.Event()
+        return self.synchronization_chain
+
+    def send_subchain(self, conn, obj):
+        conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8"))
+            
     
+if __name__ == '__main__':
+
+    if len(sys.argv) < 2:
+        client = Peer()
+        client.connect_to_net()
+
+    else:
+        arg1 = sys.argv[1]
+        client = Peer(addr=arg1)
+        client.connect_to_net()
     
-#client = Peer() 
-#client.connect_to_net()  
