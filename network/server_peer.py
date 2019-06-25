@@ -15,37 +15,37 @@ class ServerPeer:
     
     Attributes
     ----------
-    activePeers : list
+    active_peers : list
         a list containing all peers that are currently connected to the network
     connections : list
         a list containing the connections currently established with the clients
         
     Methods
     -------
-    commandHandler()
+    command_handler()
         Takes care of the user input
-    connectionHandler()
+    connection_handler()
         Manages connections to client peers
-    getActivePeers()
+    get_active_peers()
         Gets the list of all peers currently connected to the net/server peer
-    requestGraph(address)
+    request_graph(address)
         Sends request for latest version of graph to peer specified in address
-    sendActivePeers()
+    send_active_peers()
         Sends the list of active peers to all clients connected to this server
-    sendGraph(address)
+    send_graph(address)
         Sends latest version of graph to peer specified in address
     """    
     
     connections = []
-    activePeers = []
+    active_peers = []
     
     def __init__(self):
         """ Constructor that initiats general server functions
         
         A socket object is created, bind and starts listening to connections.
-        The commandhandler is started in a dedicated thread.
+        The command_handler is started in a dedicated thread.
         Incoming connections are handeled by one thread each.
-        When a connection is established the address and connection are stored in the activePeers and connections list.
+        When a connection is established the address and connection are stored in the active_peers and connections list.
         Moreover, the list of all active peers is send.
         
         """
@@ -57,26 +57,26 @@ class ServerPeer:
         
         hostname = socket.gethostname()
         hostaddr = socket.gethostbyname(hostname)
-        self.activePeers.append(hostaddr)
+        self.active_peers.append(hostaddr)
         
         print("Server running...")
         
-        commandThread = threading.Thread(target=self.commandHandler)
-        commandThread.daemon = True
-        commandThread.start()
+        command_thread = threading.Thread(target=self.command_handler)
+        command_thread.daemon = True
+        command_thread.start()
         
         while True:
             conn,addr = sock.accept()
-            thread = threading.Thread(target=self.connectionHandler, args=(conn,addr))
+            thread = threading.Thread(target=self.connection_handler, args=(conn,addr))
             thread.daemon = True
             thread.start()
             self.connections.append(conn)
-            self.activePeers.append(addr[0])
+            self.active_peers.append(addr[0])
             print(str(addr[0]) + ':' + str(addr[1]),"connected")
-            self.sendActivePeers()
+            self.send_active_peers()
             
         
-    def commandHandler(self):
+    def command_handler(self):
         """ Takes care of the user input. 
         
         The command 'peers' shows the other active peers in the network.
@@ -85,13 +85,13 @@ class ServerPeer:
         while True:
             i = input()
             if i == "peers":
-                self.getActivePeers()
+                self.get_active_peers()
             else:
                 for connection in self.connections:
                     connection.send(bytes(str(i),'utf-8'))
                     
     
-    def connectionHandler(self, conn, addr):
+    def connection_handler(self, conn, addr):
         """ Manages connections to client peers
         
         It is constantly waited for incoming data. The data is a byte stream.
@@ -111,18 +111,18 @@ class ServerPeer:
             if not data:
                 print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
                 self.connections.remove(conn)
-                self.activePeers.remove(addr[0])
+                self.active_peers.remove(addr[0])
                 conn.close()
-                self.sendActivePeers()
+                self.send_active_peers()
                 break
     
-#    def connectToNet(self):
+#    def connect_to_net(self):
 #        pass
 #    
-#    def disconnectFromNet(self):
+#    def disconnect_from_net(self):
 #        pass
     
-    def getActivePeers(self):
+    def get_active_peers(self):
         """ returns the list of all peers currently connected to this net/server peer
         
         The peer IP addresses are taken from the object variable activePeer and are joined in a String
@@ -134,13 +134,13 @@ class ServerPeer:
         """
         
         p = ""
-        for peer in self.activePeers:
+        for peer in self.active_peers:
             p = p + peer + ","
         return p
     
     
     
-    def requestGraph(self, address):
+    def request_graph(self, address):
         """ Sends request for latest version of graph to peer specified in address
         
         Parameters
@@ -152,21 +152,21 @@ class ServerPeer:
         
         pass
     
-    def sendActivePeers(self):
+    def send_active_peers(self):
         """ Sends the list of active peers to all the clients connected to this server.
         
         The list of all active peers is taken and send over every connection as a byte stream.
         A dedicated information is output to the user.
         """
         
-        p = self.getActivePeers()
+        p = self.get_active_peers()
 
         for connection in self.connections:
             connection.send(b'\x11' + bytes(p, "utf-8"))
         print("peer list sent!")
     
     
-    def sendGraph(self, address):
+    def send_graph(self, address):
         """Sends latest version of graph to peer specified in address
         
         Parameters
