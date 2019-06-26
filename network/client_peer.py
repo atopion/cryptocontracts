@@ -6,15 +6,12 @@ Created on Wed Jun  5 23:32:58 2019
 @author: rene
 """
 
-import sys
-sys.path.append("/home/rene/Desktop/blockchain_project/cryptocontracts/core")
-
 import socket
 import threading
 import os
-import sys
 import random
 import json
+import sys
 
 import core
 
@@ -177,32 +174,6 @@ class Peer:
             except KeyboardInterrupt:
                 os._exit(1)  
     
-    
-    def incoming_connection_handler(self, conn, addr):
-        """ Manages connections to other peers
-        
-        It is constantly waited for incoming data. The data is a byte stream.
-        The data sent by a client is distributed to all the other ones.
-        After a connection has been canceled, the new connection list is send to all the active peers in the network.
-        
-        parameters:
-        -----------
-        conn : connection of specific peer
-        addr : IP address of specific peer
-        """
-        
-        while True:
-            data = conn.recv(1024)
-            for connection in self.connected_peers:
-                connection.send(bytes(data))    
-            if not data:
-                print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
-                self.connected_peers.remove(conn)
-                self.active_peers.remove(addr[0])
-                conn.close()
-                self.send_active_peers()
-                break
-    
     def connect_to_net(self):
         """ Establishes connection to the server peer
         
@@ -295,6 +266,31 @@ class Peer:
         host_addr = socket.gethostbyname(host_name)
         
         return host_addr
+    
+    def incoming_connection_handler(self, conn, addr):
+        """ Manages connections to other peers
+        
+        It is constantly waited for incoming data. The data is a byte stream.
+        The data sent by a client is distributed to all the other ones.
+        After a connection has been canceled, the new connection list is send to all the active peers in the network.
+        
+        parameters:
+        -----------
+        conn : connection of specific peer
+        addr : IP address of specific peer
+        """
+        
+        while True:
+            data = conn.recv(1024)
+            for connection in self.connected_peers:
+                connection.send(bytes(data))    
+            if not data:
+                print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
+                self.connected_peers.remove(conn)
+                self.active_peers.remove(addr[0])
+                conn.close()
+                self.send_active_peers()
+                break
     
     
     def listen_for_connections(self):
@@ -423,9 +419,6 @@ class Peer:
         last_addresses.write(self.get_active_peers())
         last_addresses.close()
             
-        
-        
-        
     def send_synchronize_request(self):
         print("SEND REQUEST")
         # TODO multiple connections
