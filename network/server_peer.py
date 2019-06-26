@@ -6,15 +6,10 @@ Created on Wed Jun  5 23:47:34 2019
 @author: rene
 """
 
-#import sys
-#sys.path.append("/home/rene/Desktop/blockchain_project/cryptocontracts/core")
-#sys.path.append("/home/rene/Desktop/blockchain_project/cryptocontracts/storage")
-
 import socket
 import threading
 import os
 import json
-
 import core
 
 
@@ -46,6 +41,8 @@ class ServerPeer:
     
     connections = []
     active_peers = []
+    lock = threading.Lock()     # To lock main thread after establishing connection
+
     
     #cb_list_chain = None
     #cb_send_sync_message = None
@@ -64,21 +61,20 @@ class ServerPeer:
         
         """
         
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        sock.bind(('0.0.0.0',10000))
-        sock.listen(1)
-        
         hostname = socket.gethostname()
         hostaddr = socket.gethostbyname(hostname)
         self.active_peers.append(hostaddr)
+        
+        server_thread = threading.Thread(target=self.listen_for_connections)
+        server_thread.daemon = True
+        server_thread.start()
         
         self.cb_list_chain = list_chain
         self.cb_start_sync = start_sync
         self.cb_send_sync_message = send_sync_message
         self.cb_send_subchain_message = send_subchain_message
         
-        print("Server running...")
+        
         
         command_thread = threading.Thread(target=self.command_handler)
         command_thread.daemon = True
@@ -87,8 +83,21 @@ class ServerPeer:
         self.synchronization_request_answers = []
         self.synchronization_chain = None
         
+        self.lock.acquire()
+        self.lock.acquire()  # call two times to lock main thread
         
-    def bind(self):
+    def listen_for_connections(self):
+        """ Makes sure that peers can connect to this host.
+        
+        Creates an own thread for each incoming connection.
+        """
+        
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+        self.sock.bind(('0.0.0.0',10000))
+        self.sock.listen(1)
+        
+        print("Server running...")
         
         while True:
             conn,addr = self.sock.accept()
@@ -112,7 +121,8 @@ class ServerPeer:
                 
                 i = input()
                 if i == "peers":
-                    self.get_active_peers()
+                    p = self.get_active_peers()
+                    print(p)
                 elif i == "list":
                     if self.cb_list_chain is not None:
                         self.cb_list_chain()
@@ -126,7 +136,9 @@ class ServerPeer:
                 os._exit(1)
             except KeyboardInterrupt:
                 os._exit(1)
-                    
+            except TypeError:
+                if i == "sync":
+                    print("Can not synchronize")
     
     def connection_handler(self, conn, addr):
         """ Manages connections to client peers
