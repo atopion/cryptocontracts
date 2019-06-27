@@ -55,7 +55,7 @@ class Peer:
         Gets the list of all peers currently connected to the net/server peer
     get_connections()
         Returns the list of all peers currently connected to the this host
-    get_host_name()
+    get_host_addr()
         Returns the IP address of this host
     listen_for_connections()
         Makes sure that peers can connect to this host
@@ -79,6 +79,7 @@ class Peer:
     server_address = None
     sock_server = None
     sock_client = None
+    port = None
     
     synchronization_finished_event = threading.Event()
     synchronization_subchain_event = threading.Event()
@@ -97,7 +98,11 @@ class Peer:
         if addr is None:
             if os.path.isdir("./addresses") and os.path.isfile("./addresses/last_active_addresses.txt"):
                 last_addresses = open("./addresses/last_active_addresses.txt")
-                self.last_addresses = last_addresses.read().split(",")
+                str_rep = last_addresses.read().split(",")
+                for loc in str_rep:
+                    temp = loc.split(":")   # bring into tupel format
+                    print(temp)
+                    self.last_addresses.append((temp[0],int(temp[1])))
                 last_addresses.close()
             else:
                 sys.exit("No addresses stored. Please give a specific peer address when creating object.")
@@ -115,22 +120,23 @@ class Peer:
         
         if self.fixed_server == False:
             connected = False
-            try:
-                self.last_addresses.remove(self.get_host_name())
-            except:
-                pass
+#            not necessary anymore cause own address removed before shutdown
+#            try:
+#                self.last_addresses.remove(self.get_host_addr())
+#            except:
+#                pass
             
             while connected == False:
                 
                 if not self.last_addresses:
-                    sys.exit("None of the lastly active peers is active right now")
+                    sys.exit("No addresses stored, please connect with specific address")
                     
                 chosen_addr = random.choice(self.last_addresses)
                 try:
-                    print("Trying to connect to {}".format(chosen_addr))
-                    self.sock_client.connect((chosen_addr,10000))
+                    print("Trying to connect to {}:{}".format(chosen_addr[0],str(chosen_addr[1])))
+                    self.sock_client.connect(chosen_addr)
                     connected = True
-                    print("Found active peer. Connected to network via {}".format(chosen_addr))
+                    print("Found active peer. Connected to network via {}:{}".format(chosen_addr[0],str(chosen_addr[1])))
                 
                 except:
                     print("Not able to connect")
@@ -140,6 +146,47 @@ class Peer:
         else:
             self.sock_client.connect((self.server_address,10000))
             print("connected to server")
+            
+    def clean_active_peers(self):
+        """ Removes duplicates from list containing active peers in the net
+        """
+   
+        # TODO make sure that it is not possible that an address is appended while cleaning
+    
+        i = 0
+        for addr in self.active_peers:
+            j = 0
+            for other in self.active_peers[i+1:]:
+                if addr[0] == other[0] and addr[1] == other[1]:
+                    self.active_peers.pop(j)
+                j +=1
+            i +=1
+    
+#        clean_list = []
+#        for peer in self.active_peers:
+#            if peer not in clean_list:
+#                clean_list.append(peer)
+#        self.active_peers = clean_list
+        
+    def clean_connected_peers(self):
+        """ Removes duplicates from list containing connected peers to this host
+        """
+        
+        
+        i = 0
+        for addr in self.connected_peers:
+            j = 0
+            for other in self.connected_peers[i+1:]:
+                if addr[0] == other[0] and addr[1] == other[1]:
+                    self.connected_peers.pop(j)
+                j +=1
+            i +=1
+        
+#        clean_list = []
+#        for peer in self.connected_peers:
+#            if peer not in clean_list:
+#                clean_list.append(peer)
+#        self.connected_peers = clean_list
     
     def command_handler(self):
         """ Takes care of the user input. 
@@ -165,6 +212,12 @@ class Peer:
                 elif i == "list":
                     if self.cb_list_chain is not None:
                         self.cb_list_chain()
+                elif i == "host":
+                    p = self.get_host_addr()
+                    print(p[0]+":"+str(p[1]))
+                elif i == "clean":
+                    self.clean_active_peers()
+                    self.clean_connected_peers()
                 else:
                     for connection in self.connected_peers:
                         connection.send(bytes(str(i),'utf-8'))
@@ -209,6 +262,13 @@ class Peer:
         The socket is shutdown and closed which causes a disconnection
         """
         
+        try:
+            self.last_addresses.remove(self.get_host_addr()) 
+        except:
+            pass
+        
+        self.store_addresses()  # when restarted this host does not try to connect to itself
+        
         self.lock.release()     #unlock main thread
         
         self.sock_client.shutdown(socket.SHUT_RDWR)
@@ -227,13 +287,15 @@ class Peer:
         string
             a string representing the IP addresses of the currently connected peers
         """
+        if self.active_peers:
+            p = self.active_peers[0][0] + ":" + str(self.active_peers[0][1])
         
-        p = ""
-        
-        for peer in self.active_peers:
-            p = p + peer + ","
-        
+            for peer in self.active_peers[1:]:
+    #            p = p + peer + ","
+                p = p +  "," + peer[0] + ":" + str(peer[1]) 
+            
         return p
+    
     
     def get_connections(self):
         """ Returns the list of all peers currently connected to the this host
@@ -245,15 +307,19 @@ class Peer:
         string
             a string representing the IP addresses of the currently connected peers
         """
-        
-        p = ""
-        
-        for peer in self.connected_peers:
-            p = p + peer + ","
+        if self.connected_peers:
+            p = self.connected_peers[0][0] + ":" + str(self.connected_peers[0][1])
+            
+            for peer in self.connected_peers[1:]:
+    #            p = p + peer + ","
+                p = p + "," + peer[0] + ":" + str(peer[1])
+           
+        else:
+            p = "No connections established to this host"
             
         return p
     
-    def get_host_name(self):
+    def get_host_addr(self):
         """ Returns the IP address of this host.
         
         Returns
@@ -265,7 +331,7 @@ class Peer:
         host_name = socket.gethostname()
         host_addr = socket.gethostbyname(host_name)
         
-        return host_addr
+        return (host_addr,self.port)
     
     def incoming_connection_handler(self, conn, addr):
         """ Manages connections to other peers
@@ -287,7 +353,9 @@ class Peer:
             if not data:
                 print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
                 self.connected_peers.remove(conn)
-                self.active_peers.remove(addr[0])
+                self.clean_connected_peers()
+                self.active_peers.remove(addr)
+                self.clean_active_peers()
                 conn.close()
                 self.send_active_peers()
                 break
@@ -301,8 +369,8 @@ class Peer:
         
         self.sock_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock_server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        port = random.randint(10001,15000)
-        self.sock_server.bind(('0.0.0.0',port))
+        self.port = random.randint(10001,15000)
+        self.sock_server.bind(('0.0.0.0',self.port))
         self.sock_server.listen(1)
         
         while True:
@@ -311,7 +379,9 @@ class Peer:
             thread.daemon = True
             thread.start()
             self.connected_peers.append(conn)
-            self.active_peers.append(addr[0])
+            self.clean_connected_peers()
+            self.active_peers.append(addr)
+            self.clean_active_peers()
             print(str(addr[0]) + ':' + str(addr[1]),"connected")
             self.send_active_peers()
     
@@ -335,7 +405,13 @@ class Peer:
                 
                 # look for specific prefix indicating the list of active peers
                 if mode == 11:
-                    self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")[:-1]
+                    rec_data = str(data[1:], "utf-8").split(",")
+                    for addr in rec_data:
+                        temp = addr.split(":")  # bring into tuple format
+                        self.active_peers.append((temp[0],int(temp[1])))
+                        
+#                    self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")
+                    self.clean_active_peers()
                     self.store_addresses()   # store addresses of active peers in file
                     
                     
