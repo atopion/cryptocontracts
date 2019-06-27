@@ -42,7 +42,6 @@ class ServerPeer:
     connections = []
     active_peers = []
     lock = threading.Lock()     # To lock main thread after establishing connection
-
     
     #cb_list_chain = None
     #cb_send_sync_message = None
@@ -50,7 +49,7 @@ class ServerPeer:
     synchronization_finished_event = threading.Event()
     synchronization_subchain_event = threading.Event()
     
-    def __init__(self, list_chain=None, send_sync_message=None, send_subchain_message=None, start_sync=None):
+    def __init__(self, list_chain=None, send_sync_message=None, send_subchain_message=None, start_sync=None, port=None):
         """ Constructor that initiats general server functions
         
         A socket object is created, bind and starts listening to connections.
@@ -61,9 +60,12 @@ class ServerPeer:
         
         """
         
+        if port == None:
+            port = 10000
+        
         hostname = socket.gethostname()
         hostaddr = socket.gethostbyname(hostname)
-        self.active_peers.append(hostaddr)
+        self.active_peers.append((hostaddr,port))
         
         server_thread = threading.Thread(target=self.listen_for_connections)
         server_thread.daemon = True
@@ -105,7 +107,7 @@ class ServerPeer:
             thread.daemon = True
             thread.start()
             self.connections.append(conn)
-            self.active_peers.append(addr[0])
+            self.active_peers.append(addr)
             print(str(addr[0]) + ':' + str(addr[1]),"connected")
             self.send_active_peers()
             
@@ -128,6 +130,8 @@ class ServerPeer:
                         self.cb_list_chain()
                 elif i == "sync":
                     self.cb_start_sync()
+#                elif i == "connections":
+#                    print(self.connections)
                 else:
                     for connection in self.connections:
                         connection.send(bytes(str(i),'utf-8'))
@@ -160,7 +164,7 @@ class ServerPeer:
                 if not data:
                     print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
                     self.connections.remove(conn)
-                    self.active_peers.remove(addr[0])
+                    self.active_peers.remove(addr)
                     conn.close()
                     self.send_active_peers()
                     break
@@ -215,9 +219,13 @@ class ServerPeer:
             a string representing the IP addresses of the currently connected peers
         """
         
-        p = ""
-        for peer in self.active_peers:
-            p = p + peer + ","
+        if self.active_peers:
+            p = self.active_peers[0][0] + ":" + str(self.active_peers[0][1])
+        
+            for peer in self.active_peers[1:]:
+    #            p = p + peer + ","
+                p = p +  "," + peer[0] + ":" + str(peer[1]) 
+        
         return p
     
     
