@@ -166,7 +166,7 @@ class Peer:
                     except:
                         pass
                 try:
-                    self.send_port(chosen_addr)
+                    self.send_port(chosen_addr, self.sock_client)
                 except:
                     print("Could not send own address!")
                     
@@ -181,6 +181,11 @@ class Peer:
                     print("connected to server")
                 except:
                     print("Could not connect to server")
+            try:
+                self.send_port(self.server_address, self.sock_client)
+                print("Own address sent to server")
+            except Exception as e:
+                print(e)
             
             
     def clean_active_connectable_addresses(self):
@@ -291,7 +296,7 @@ class Peer:
         """
         
         self.sock_client= socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock_client.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+#        self.sock_client.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         
         command_thread = threading.Thread(target=self.command_handler)
         command_thread.daemon = True
@@ -301,7 +306,7 @@ class Peer:
         server_thread.daemon = True
         server_thread.start()
         
-        time.sleep(2)    # so server_thread has time to bind socket and assign port 
+        time.sleep(1)    # so server_thread has time to bind socket and assign port 
         host_addr = self.get_host_addr()
         print(host_addr)
         
@@ -440,19 +445,95 @@ class Peer:
         
         # TODO think about if this method should wait for receiving data
         
+        self.send_port(conn, self.sock_server)
+        
         while True:
-            data = conn.recv(1024)
-            for connection in self.connected_peers:
-                connection.send(bytes(data))    
-            if not data:
-                print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
-                self.connected_peers.remove(conn)
-                self.clean_connected_peers()
-                self.active_peers.remove(addr)
-                self.clean_active_peers()
-                conn.close()
-                self.send_active_peers()
-                break
+            try:
+                
+                # TODO check if single thread for each outgoing connection needed
+                data = conn.recv(1024)
+                
+                if not data:
+                    break
+#                    self.fixed_server = False   # When server peer goes offline, this peer needs to connect to another peer
+#                    self.choose_connection()
+                
+                print("RECEIVED: ", data, "\n")
+#                 mode = int(bytes(data).hex()[0:2])
+                
+                
+                inputs = str(data, "utf-8").split("!")
+               
+                for msg in inputs:
+                    if msg != "":
+                        mode = int(bytes(msg, "utf-8").hex()[0:2])
+                        print("part message: ", msg)
+                        print("mode: ", mode)
+                        # look for specific prefix indicating the list of active peers
+                        if mode == 11:
+                            rec_data = msg[1:].split(",")
+                            for addr in rec_data:
+                                temp = addr.split(":")  # bring into tuple format
+                                self.active_peers.append((temp[0],int(temp[1])))
+                                
+        #                    self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")
+                            self.clean_active_peers()
+        #                    self.store_addresses()   # store addresses of active peers in file
+                            
+                        elif mode == 12:
+                            rec_data = msg[1:].split(",")
+                            for addr in rec_data:
+                                temp = addr.split(":")  # bring into tuple format
+                                self.active_connectable_addresses.append((temp[0],int(temp[1])))
+                                self.clean_active_connectable_addresses()
+                            
+                        elif mode == 31:
+                                # Synchronization request
+                                if self.cb_send_sync_message is not None:
+                                    self.cb_send_sync_message(self.sock_client)
+            
+                        elif mode == 32:
+                            # Synchronization answer
+                            data = json.loads(str(msg[1:])[2:-1])
+                            data["conn"] = self.sock_client
+                            self.synchronization_request_answers.append(msg)
+                            # TODO multiple connections
+                            #if len(self.synchronization_request_answers) == len(self.connected_peers):
+                            #    self.synchronization_finished_event.set()
+                            self.synchronization_finished_event.set()
+            
+                        elif mode == 33:
+                            # Subchain request
+                            hash = str(msg[1:])[2:-1]
+                            if self.cb_send_subchain_message is not None:
+                                self.cb_send_subchain_message(self.sock_client, hash)
+            
+                        elif mode == 34:
+                            # Subchain answer
+                            self.synchronization_chain = core.core.Transmission.list_from_json(str(msg[1:])[2:-1].replace("\\\\", "\\"))
+                            self.synchronization_subchain_event.set()
+                        # if no prefix consider data a message and print it
+                        else:
+                            print("Message: ", msg)
+                        
+            except ConnectionResetError or ConnectionAbortedError:
+                print("Connection closed.")
+                os._exit(1)
+        
+#        while True:
+#            data = conn.recv(1024)
+#            print("RECEIVED: ", data)
+#            for connection in self.connected_peers:
+#                connection.send(bytes(data))    
+#            if not data:
+#                print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
+#                self.connected_peers.remove(conn)
+#                self.clean_connected_peers()
+#                self.active_peers.remove(addr)
+#                self.clean_active_peers()
+#                conn.close()
+#                self.send_active_peers()
+#                break
     
     
     def listen_for_connections(self):
@@ -485,6 +566,7 @@ class Peer:
         If the connection to the server node corrupts, it is looked for another node to connect to
         """
         
+        
         while True:
             try:
                 
@@ -496,55 +578,63 @@ class Peer:
                     self.choose_connection()
                 
                 print("RECEIVED: ", data, "\n")
-                mode = int(bytes(data).hex()[0:2])
+#                 mode = int(bytes(data).hex()[0:2])
                 
-                # look for specific prefix indicating the list of active peers
-                if mode == 11:
-                    rec_data = str(data[1:], "utf-8").split(",")
-                    for addr in rec_data:
-                        temp = addr.split(":")  # bring into tuple format
-                        self.active_peers.append((temp[0],int(temp[1])))
+                
+                inputs = str(data, "utf-8").split("!")
+               
+                for msg in inputs:
+                    if msg != "":
+                        mode = int(bytes(msg, "utf-8").hex()[0:2])
+                        print("part message: ", msg)
+                        print("mode: ", mode)
+                        # look for specific prefix indicating the list of active peers
+                        if mode == 11:
+                            rec_data = msg[1:].split(",")
+                            for addr in rec_data:
+                                temp = addr.split(":")  # bring into tuple format
+                                self.active_peers.append((temp[0],int(temp[1])))
+                                
+        #                    self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")
+                            self.clean_active_peers()
+        #                    self.store_addresses()   # store addresses of active peers in file
+                            
+                        elif mode == 12:
+                            rec_data = msg[1:].split(",")
+                            for addr in rec_data:
+                                temp = addr.split(":")  # bring into tuple format
+                                self.active_connectable_addresses.append((temp[0],int(temp[1])))
+                                self.clean_active_connectable_addresses()
+                            
+                        elif mode == 31:
+                                # Synchronization request
+                                if self.cb_send_sync_message is not None:
+                                    self.cb_send_sync_message(self.sock_client)
+            
+                        elif mode == 32:
+                            # Synchronization answer
+                            data = json.loads(str(msg[1:])[2:-1])
+                            data["conn"] = self.sock_client
+                            self.synchronization_request_answers.append(msg)
+                            # TODO multiple connections
+                            #if len(self.synchronization_request_answers) == len(self.connected_peers):
+                            #    self.synchronization_finished_event.set()
+                            self.synchronization_finished_event.set()
+            
+                        elif mode == 33:
+                            # Subchain request
+                            hash = str(msg[1:])[2:-1]
+                            if self.cb_send_subchain_message is not None:
+                                self.cb_send_subchain_message(self.sock_client, hash)
+            
+                        elif mode == 34:
+                            # Subchain answer
+                            self.synchronization_chain = core.core.Transmission.list_from_json(str(msg[1:])[2:-1].replace("\\\\", "\\"))
+                            self.synchronization_subchain_event.set()
+                        # if no prefix consider data a message and print it
+                        else:
+                            print("Message: ", msg)
                         
-#                    self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")
-                    self.clean_active_peers()
-#                    self.store_addresses()   # store addresses of active peers in file
-                    
-                elif mode == 12:
-                    rec_data = str(data[1:], "utf-8").split(",")
-                    for addr in rec_data:
-                        temp = addr.split(":")  # bring into tuple format
-                        self.active_connectable_addresses.append((temp[0],int(temp[1])))
-                        self.clean_active_connectable_addresses()
-                    
-                elif mode == 31:
-                        # Synchronization request
-                        if self.cb_send_sync_message is not None:
-                            self.cb_send_sync_message(self.sock_client)
-    
-                elif mode == 32:
-                    # Synchronization answer
-                    data = json.loads(str(data[1:])[2:-1])
-                    data["conn"] = self.sock_client
-                    self.synchronization_request_answers.append(data)
-                    # TODO multiple connections
-                    #if len(self.synchronization_request_answers) == len(self.connected_peers):
-                    #    self.synchronization_finished_event.set()
-                    self.synchronization_finished_event.set()
-    
-                elif mode == 33:
-                    # Subchain request
-                    hash = str(data[1:])[2:-1]
-                    if self.cb_send_subchain_message is not None:
-                        self.cb_send_subchain_message(self.sock_client, hash)
-    
-                elif mode == 34:
-                    # Subchain answer
-                    self.synchronization_chain = core.core.Transmission.list_from_json(str(data[1:])[2:-1].replace("\\\\", "\\"))
-                    self.synchronization_subchain_event.set()
-                # if no prefix consider data a message and print it
-                else:
-                    print("Message: ", str(data,'utf-8'))
-                    
             except ConnectionResetError or ConnectionAbortedError:
                 print("Connection closed.")
                 os._exit(1)
@@ -573,7 +663,7 @@ class Peer:
 
         if p:
             for address in self.connected_peers:
-                address.send(b'\x12' + bytes(p, "utf-8"))
+                address.send(b'\x12' + bytes(p, "utf-8") + b'!')
                 print("Connectable addresses sent!")
         else:
             print("Wanted to send connectable address list but it is empty!")
@@ -591,7 +681,7 @@ class Peer:
         if p:
             
             for address in self.connected_peers:
-                address.send(b'\x11' + bytes(p, "utf-8"))
+                address.send(b'\x11' + bytes(p, "utf-8") + b'!')
             print("peer list sent!")
         else:
             print("Wanted to send active peer list but it is empty!")
@@ -606,7 +696,7 @@ class Peer:
         """
         pass
     
-    def send_port(self, address):
+    def send_port(self, address, socket):
         """ Sends address with port number for establishing connection to this host
         
         Parameters
@@ -616,7 +706,13 @@ class Peer:
         """
         
         host = self.get_host_addr()
-        address.send(b'\x12' + bytes(host, "utf-8"))
+        p = host[0] + ":" + str(host[1])
+        
+        if socket is self.sock_client:
+            
+            socket.send(b'\x12' + bytes(p, "utf-8")+ b'!')   # ! signals end of message
+        else:
+            address.send(b'\x12' + bytes(p, "utf-8")+ b'!')
         print("Own address sent!")
     
     def store_addresses(self):
