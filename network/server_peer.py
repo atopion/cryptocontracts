@@ -39,6 +39,7 @@ class ServerPeer:
         Sends latest version of graph to peer specified in address
     """    
     
+    active_connectable_addresses = []
     connections = []
     active_peers = []
     lock = threading.Lock()     # To lock main thread after establishing connection
@@ -102,7 +103,7 @@ class ServerPeer:
         print("Server running...")
         
         while True:
-            conn,addr = self.sock.accept()
+            conn, addr = self.sock.accept()
             thread = threading.Thread(target=self.connection_handler, args=(conn,addr))
             thread.daemon = True
             thread.start()
@@ -110,6 +111,7 @@ class ServerPeer:
             self.active_peers.append(addr)
             print(str(addr[0]) + ':' + str(addr[1]),"connected")
             self.send_active_peers()
+            self.send_active_connectable_addresses()
             
         
     def command_handler(self):
@@ -124,6 +126,9 @@ class ServerPeer:
                 i = input()
                 if i == "peers":
                     p = self.get_active_peers()
+                    print(p)
+                elif i == "connectable":
+                    p = self.get_active_connectable_addresses()
                     print(p)
                 elif i == "list":
                     if self.cb_list_chain is not None:
@@ -169,7 +174,27 @@ class ServerPeer:
                     self.send_active_peers()
                     break
                 
+                print("RECEIVED: ", data, "\n")
                 mode = int(bytes(data).hex()[0:2])
+                
+                if mode == 11:
+                    rec_data = str(data[1:], "utf-8").split(",")
+                    for addr in rec_data:
+                        temp = addr.split(":")  # bring into tuple format
+                        self.active_peers.append((temp[0],int(temp[1])))
+                        
+#                    self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")
+                    self.clean_active_peers()
+                    
+                if mode == 12:
+                    rec_data = str(data[1:], "utf-8").split(",")
+                    for addr in rec_data:
+                        temp = addr.split(":")  # bring into tuple format
+                        self.active_connectable_addresses.append((temp[0],int(temp[1])))
+                        
+#                    self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")
+                    self.clean_active_connectable_addresses()
+                
                 if mode == 31:
                     # Synchronization request
                     if self.cb_send_sync_message is not None:
@@ -208,6 +233,28 @@ class ServerPeer:
 #    def disconnect_from_net(self):
 #        pass
     
+    def get_active_connectable_addresses(self):
+        """ Returns the list of all peers currently connected to the net/server peer with their port numbers to connect to
+        
+        The peer IP addresses and port numbers are taken from the object variable active_connectable_addresses and are joined in a String
+        
+        Returns
+        -------
+        string
+            a string representing the IP addresses of the currently connected peers
+        """
+        
+        if self.active_connectable_addresses:
+            p = self.active_connectable_addresses[0][0] + ":" + str(self.active_connectable_addresses[0][1])
+        
+            for peer in self.active_connectable_addresses[1:]:
+    #            p = p + peer + ","
+                p = p +  "," + peer[0] + ":" + str(peer[1]) 
+        else:
+            p = None
+            
+        return p
+    
     def get_active_peers(self):
         """ returns the list of all peers currently connected to this net/server peer
         
@@ -218,14 +265,16 @@ class ServerPeer:
         string
             a string representing the IP addresses of the currently connected peers
         """
-        
+
         if self.active_peers:
             p = self.active_peers[0][0] + ":" + str(self.active_peers[0][1])
         
             for peer in self.active_peers[1:]:
     #            p = p + peer + ","
                 p = p +  "," + peer[0] + ":" + str(peer[1]) 
-        
+        else:
+            p = None
+            
         return p
     
     
@@ -242,6 +291,22 @@ class ServerPeer:
         
         pass
     
+    def send_active_connectable_addresses(self):
+        """ Sends the list of active connectable addresses to all peers connected to this host.
+        
+        The list of all active connectable addresses is taken and send over every connection as a byte stream.
+        A dedicated information is output to the user.
+        """
+        
+        p = self.get_active_connectable_addresses()
+
+        if p:
+            for address in self.connections:
+                address.send(b'\x12' + bytes(p, "utf-8"))
+            print("connectable addresses sent!")
+        else:
+            print("Wanted to send connectable address list but it is empty!")
+                
     def send_active_peers(self):
         """ Sends the list of active peers to all the clients connected to this server.
         
@@ -250,10 +315,13 @@ class ServerPeer:
         """
         
         p = self.get_active_peers()
-
-        for connection in self.connections:
-            connection.send(b'\x11' + bytes(p, "utf-8"))
-        print("peer list sent!")
+        if p:
+            
+            for connection in self.connections:
+                connection.send(b'\x11' + bytes(p, "utf-8"))
+            print("peer list sent!")
+        else:
+            print("Wanted to send peer list, but it is empty!")
     
     
     def send_graph(self, address):
