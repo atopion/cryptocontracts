@@ -72,14 +72,16 @@ class Peer:
     """
     
     active_peers = []
+    full_addresses = []     # Both addresses of active peers, for sending and receiving
     connected_peers = []    # Addresses of peers connected to this host
     fixed_server = False
     last_addresses = []
     lock = threading.Lock()     # To lock main thread after establishing connection
+    port = None
     server_address = None
     sock_server = None
     sock_client = None
-    port = None
+    
     
     synchronization_finished_event = threading.Event()
     synchronization_subchain_event = threading.Event()
@@ -324,8 +326,8 @@ class Peer:
         
         Returns
         -------
-        string
-            a string representing the IP address of this host
+        tuple (str,int)
+            a tuple containing the IP address of this host and the port that the server socket is bound to
         """
         
         host_name = socket.gethostname()
@@ -483,6 +485,19 @@ class Peer:
             IP address of peer to send graph to
         """
         pass
+    
+    def send_port(self, address):
+        """ Sends address with port number for establishing connection to this host
+        
+        Parameters
+        ----------
+        address : tuple (str,int)
+            IP address and port to send to
+        """
+        
+        host = self.get_host_addr()
+        address.send(b'\x12' + bytes(host, "utf-8"))
+        print("Own address sent!")
     
     def store_addresses(self):
         """ Stores the currently active peers in the network to file
