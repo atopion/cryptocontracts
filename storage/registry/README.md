@@ -26,8 +26,8 @@ curl -X GET -u $auth "${baseUrl}all"
 
 # ip register
 curl -X DELETE -u $auth "${baseUrl}ip"
-curl -X POST -u $auth "${baseUrl}ip?port=9000"
-curl -X POST -u $auth "${baseUrl}ip?port=9001"
+curl -X POST -u $auth "${baseUrl}ip" -d '{"port": 9000}'
+curl -X POST -u $auth "${baseUrl}ip" -d '{"port": 9001}'
 curl -X GET -u $auth "${baseUrl}ip"
 ```
 

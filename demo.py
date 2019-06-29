@@ -2,7 +2,7 @@
 
 from core import core
 from storage import storage, config
-from network import registry
+from network import registry, ip_server
 
 #print('db path: ' + config.get('database','path'))
 
@@ -11,6 +11,12 @@ registry.put_key('myname', 'mykey')
 registry.put_key('mynameaswell', 'mykeyaswell')
 print('yea') if registry.key_exists('notmykey') else print('no')
 print(registry.get_all())
+
+ip_server.delete_all()
+port=config.get('server', 'port')
+ip_server.add_self(port)
+print(ip_server.get_all())
+
 
 
 t1 = core.produceTransmission(storage.get_head(), ['key1','key2'], 'document1_hash')

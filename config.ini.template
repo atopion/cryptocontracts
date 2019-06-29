@@ -4,11 +4,12 @@
 [hash]
 documents=blake:whirlpool:sha3_512
 
+[server]
+port=9000
 
 ;; blockchain database location on filesystem (will be created if missing)
 [database]
 path=/tmp/cryptocontracts/
-
 
 ;; public key registry
 [registry]
