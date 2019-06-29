@@ -1,16 +1,13 @@
 from flask import Blueprint, request, Response, jsonify, abort
 from functools import wraps
 from base64 import b64encode
-import yaml
 import sqlite3
+
+import config
 
 cryptocontracts = Blueprint('cryptocontracts', __name__, template_folder='templates')
 
-conf_f = open('/app/config.yaml')
-conf = yaml.safe_load(conf_f)
-conf_f.close()
-
-basicAuth = 'Basic ' + b64encode(bytes(conf['data']['cryptocontracts']['user'] + ':' + conf['data']['cryptocontracts']['pw'], "ascii")).decode('ascii')
+basicAuth = 'Basic ' + b64encode(bytes(config.get('cryptocontracts.user') + ':' + config.get('cryptocontracts.pw'), "ascii")).decode('ascii')
 dbFilename='/db.sqlite3'
 
 
@@ -57,7 +54,10 @@ def get():
 		db = sqlite3.connect(dbFilename)
 		c = db.cursor()
 		c.execute('select id, created, key from keys where key=?;', (request.json['key'],))
-		rid, rcreated, rkey = c.fetchone()
+		res = c.fetchone()
+		if res is None:
+			return Response(status=404)
+		rid, rcreated, rkey = res
 		result = {'id': rid, 'created': rcreated, 'key': rkey}
 		c.close()
 		db.close()
@@ -121,12 +121,12 @@ def delete_all():
 @auth_required
 def ip_post():
 	try:
-		if request.args.get('port') is None:
-			return Response('', status=400)
+		if request.json is None or 'port' not in request.json:
+			return Response(status=400)
 
 		db = sqlite3.connect(dbFilename)
 		c = db.cursor()
-		c.execute('insert or replace into ips (ip, port, joined) values (?, ?, datetime("now"));', (request.headers['X-Forwarded-For'], request.args.get('port')))
+		c.execute('insert or replace into ips (ip, port, joined) values (?, ?, datetime("now"));', (request.headers['X-Forwarded-For'], request.json['port']))
 		db.commit()
 		c.close()
 		db.close()
