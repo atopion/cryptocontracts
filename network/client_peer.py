@@ -149,7 +149,7 @@ class Peer:
             host_addr = self.get_host_addr()
             while connected == False:
                 
-                if len(self.active_connectable_addresses) > 1 :
+                if len(self.active_connectable_addresses) > 1 : # evoid endless looping when only own address is in list
                     chosen_addr = random.choice(self.active_connectable_addresses)
                     
                 
@@ -160,21 +160,20 @@ class Peer:
                 else:
                     chosen_addr = random.choice(self.last_addresses)
                     
-                if not (chosen_addr[0] == host_addr[0] and chosen_addr[1] == host_addr[1]):
-                    try:
-                        print("Trying to connect to {}:{}".format(chosen_addr[0],str(chosen_addr[1])))
-                        self.create_new_connection(chosen_addr)
-                        connected = True
-                        print("Found active peer. Connected to network via {}:{}".format(chosen_addr[0],str(chosen_addr[1])))
+                if not (chosen_addr[0] == host_addr[0] and chosen_addr[1] == host_addr[1]):     # do not connect to own address
+                    print("Trying to connect to {}:{}".format(chosen_addr[0],str(chosen_addr[1])))
+                    connected = self.create_new_connection(chosen_addr)
+                    if connected:
                         self.active_connectable_addresses.append(self.get_host_addr())
-                        
+                        self.store_addresses()
+                    
+                    
 #                        try:
 #                            self.send_port(chosen_addr, self.sock_client)
 #                        except:
 #                            print("Could not send own address!")
                         
-                    except:
-                        print("Not able to connect")
+                    else:
                         try:
                             self.last_addresses.remove(chosen_addr)
                         except Exception as e:
@@ -187,25 +186,11 @@ class Peer:
 #                self.sock_client.connect(self.server_address)
                 self.create_new_connection(self.server_address)
                 connected = True
-                print("connected to server {}:{}".format(self.server_address[0],str(self.server_address[1])))
-                self.active_connectable_addresses.append(self.get_host_addr())
+#                print("connected to server {}:{}".format(self.server_address[0],str(self.server_address[1])))
+#                self.active_connectable_addresses.append(self.get_host_addr())
             except:
                 print("Could not connect to specified address. Host will start and wait for connections")
-#                try:    # if no port specified
-#                    specific_port = 10000
-#                    self.create_new_connection((self.server_address,specific_port))
-##                    self.sock_client.connect((self.server_address,specific_port))
-#                    connected = True
-#                    print("connected to server {}:{}".format(self.server_address[0],specific_port))
-#                    self.active_connectable_addresses.append(self.get_host_addr())
-#                except:
-#                    print("Could not connect to server {}:{}".format(self.server_address[0],specific_port))
-#            try:
-#                self.send_port(self.server_address, self.sock_client)
-#                print("Own address sent to server")
-#            except Exception as e:
-#                print(e)
-            
+#                
         return connected
             
     def clean_active_connectable_addresses(self):
@@ -348,6 +333,7 @@ class Peer:
         time.sleep(1)    # so server_thread has time to bind socket and assign port 
         host_addr = self.get_host_addr()
         self.active_connectable_addresses.append(host_addr)
+        self.store_addresses()
         print("Host address: ", host_addr)
         
         if not self.standalone:
@@ -364,12 +350,28 @@ class Peer:
         
         
     def create_new_connection(self, addr):
+        """ Creates a new connection to a specified address
+       
+        A new socket is created. Over that a connecetion to the passed address is established
+        The connection is managed in a separate thread. If connection not possible print notification.
+       
+        Parameters
+        ----------
+        addr : (str,int)
+           A tuple of IP address and port to which a connection should be established
+           
+        Returns
+        -------
+        connected : boolean
+           a variable stating if connection was succesfully created
+        """
         
         existing = False
         for peer in self.server_peers:
             if (peer[0] == addr[0] and peer[1] == addr[1]):
                 existing = True
         
+        connected = False
         if not existing:
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -380,10 +382,11 @@ class Peer:
                 thread.daemon = True
                 thread.start()
                 print("Connected to " + addr[0] + ":" + str(addr[1]))
+                connected = True
             except Exception as e:
                 print("Could not connect to {}:{} \n Reason: {}".format(addr[0],str(addr[1]),e))
-            
-            
+                
+        return connected
             
         
     def disconnect_from_net(self):
@@ -518,7 +521,7 @@ class Peer:
                 
         return p
     
-    def incoming_connection_handler(self, conn, addr):
+    def incoming_connection_handler(self, conn, address):
         """ Manages connections to other peers
         
         It is constantly waited for incoming data. The data is a byte stream.
@@ -542,31 +545,32 @@ class Peer:
                 data = conn.recv(1024)
                 
                 if not data:
-                    print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
+                    print(str(address[0]) + ":" + str(address[1]),"disconnected")
                     conn.close()
                     try:
                         self.connections.remove(conn)
                         self.clean_connections()
                     # TODO find out why Error is raised
                     except ValueError:
-                        pass
+                        print("Could not remove connection from connections \n")
                     
                     try:
-                        self.connected_peers.remove(addr)
+                        self.connected_peers.remove(address)
                         self.clean_connected_peers()
                     except ValueError:
-                        pass
+                        print("Could not remove address {}:{} from connected peers \n".format(address[0],str(address[1])))
                     
                     try:
-                        self.active_peers.remove(addr)
+                        self.active_peers.remove(address)
                         self.clean_active_peers()
                     except ValueError:
-                        pass
+                        print("Could not remove address {}:{} from active peers \n".format(address[0],str(address[1])))
                     
-                    self.send_active_peers()
+#                    self.send_active_peers()
+                    self.send_offline_peer(address) # notify connected peers that one peer went offline
                     break
                 
-                print("From {}:{} received {} \n".format(addr[0],str(addr[1]),data))
+                print("From {}:{} received {} over incoming connection handler \n".format(address[0],str(address[1]),data))
 #                 mode = int(bytes(data).hex()[0:2])
                 
                 
@@ -579,6 +583,9 @@ class Peer:
 #                        print("mode: ", mode)
                         # look for specific prefix indicating the list of active peers
                         if mode == 11:
+                            
+                            self.clean_active_peers()   # just for testing
+                            
                             rec_active_peers = []
                             rec_data = msg[1:].split(",")
                             for addr in rec_data:
@@ -588,15 +595,19 @@ class Peer:
                                 for rec_peer in rec_active_peers:
                                     for peer in self.active_peers:
                                         existing = False
-                                        if (peer[0] == rec_peer[0] and peer[1] == rec_peer[1]):     # append new addresses
+                                        if (peer[0] == rec_peer[0] and peer[1] == rec_peer[1]):     
                                             existing = True
+                                            break
                                     if not existing:
-                                        self.active_peers.append((rec_peer[0],rec_peer[1]))
+                                        self.active_peers.append((rec_peer[0],rec_peer[1]))     # append new addresses
                                             
                                 self.clean_active_peers()
-                                self.send_active_peers()
+#                                self.send_active_peers()
                             
                         elif mode == 12:
+                            
+                            self.clean_active_connectable_addresses()   # just for testing
+                            
                             rec_connectable_addresses = []
                             rec_data = msg[1:].split(",")
                             
@@ -608,11 +619,12 @@ class Peer:
                                 for rec_peer in rec_connectable_addresses:
                                     for peer in self.active_connectable_addresses:
                                         existing = False
-                                        if (peer[0] == rec_peer[0] and peer[1] == rec_peer[1]):     # append new addresses
+                                        if (peer[0] == rec_peer[0] and peer[1] == rec_peer[1]):     
                                             existing = True
+                                            break
                                     if not existing:
-                                        self.active_connectable_addresses.append((rec_peer[0],rec_peer[1]))
-                                        
+                                        self.active_connectable_addresses.append((rec_peer[0],rec_peer[1])) # append new addresses
+                                        # appending already included in new connection function
                                         self.create_new_connection((rec_peer[0],rec_peer[1]))
                                         
                                 self.clean_active_connectable_addresses()
@@ -661,12 +673,12 @@ class Peer:
 #            for connection in self.connections:
 #                connection.send(bytes(data))    
 #            if not data:
-#                print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
+#                print(str(address[0]) + ":" + str(address[1]),"disconnected")
 #                self.connections.remove(conn)
 #                self.clean_connections()
-#                self.connected_peers.remove(addr)
+#                self.connected_peers.remove(address)
 #                self.clen_connected_peers()
-#                self.active_peers.remove(addr)
+#                self.active_peers.remove(address)
 #                self.clean_active_peers()
 #                conn.close()
 #                self.send_active_peers()
@@ -698,13 +710,13 @@ class Peer:
             print(str(addr[0]) + ':' + str(addr[1]),"connected")
             self.send_active_peers()
     
-    def outgoing_connection_handler(self, addr, sock):
+    def outgoing_connection_handler(self, address, sock):
         """ Maintains outgoing connection from this peer to another node in the net
         
         If the connection to the server node corrupts, it is looked for another node to connect to
         """
         
-        self.send_port(addr, sock)
+        self.send_port(address, sock)
         
         while True:
             try:
@@ -713,18 +725,28 @@ class Peer:
 #                data = self.sock_client.recv(1024)
                 data = sock.recv(1024)
                 if not data:
+                    try:
+                        self.server_peers.remove(address)
+                    except:
+                        print("Could not remove server peer: {}:{} from server list".format(address[0],str(address[1])))
+                        
+                    try:
+                        self.active_connectable_addresses.remove(address)
+                    except:
+                        print("Could not remove server peer: {}:{} from active connectable address list".format(address[0],str(address[1])))
+                        
+                        
+                    self.send_offline_connectable_address(address)  # notify other peers that one peer went offline
+                    
                     self.client_sockets.remove(sock)
                     sock.shutdown(socket.SHUT_RDWR)
                     sock.close()
-                    try:
-                        self.server_peers.remove(addr)
-                    except: 
-                        print("Could not remove server peer: {}:{} from server list".format(addr[0],str(addr[1])))
+                    
                     break
 #                    self.fixed_server = False   # When server peer goes offline, this peer needs to connect to another peer
 #                    self.choose_connection()
                 
-#                print("From {}:{} received {} \n".format(addr[0],str(addr[1]),data))
+                print("From {}:{} received {} \n".format(address[0],str(address[1]),data))
 #                 mode = int(bytes(data).hex()[0:2])
                 
                 
@@ -737,38 +759,80 @@ class Peer:
 #                        print("mode: ", mode)
                         # look for specific prefix indicating the list of active peers
                         if mode == 11:
+                            
+                            self.clean_active_peers() # jsut for testing
+                            
                             rec_active_peers = []
                             rec_data = msg[1:].split(",")
                             for addr in rec_data:
                                 temp = addr.split(":")  # bring into tuple format
-                                rec_active_peers.append((temp[0],int(temp[1])))
-                            if not set(rec_active_peers) == set(self.active_peers): # check if peer lists are equal
+                                try:
+                                    rec_active_peers.append((temp[0],int(temp[1])))
+                                except IndexError:
+                                    print("INDEXERROR: ", temp)
+                            if not (set(rec_active_peers) == set(self.active_peers)): # check if peer lists are equal
+                                
                                 for rec_peer in rec_active_peers:
+                                    existing = False
                                     for peer in self.active_peers:
-                                        if not (peer[0] == rec_peer[0] and peer[1] == rec_peer[1]):     # append new addresses
-                                            self.active_peers.append((rec_peer[0],rec_peer[1]))
+                                        if (peer[0] == rec_peer[0] and peer[1] == rec_peer[1]):     
+                                            existing = True
+                                            break
+                                    if not existing:
+                                        self.active_peers.append((rec_peer[0],rec_peer[1]))     # append new addresses
                                             
                                 self.clean_active_peers()
                                 self.send_active_peers()
                             
                         elif mode == 12:
+#                            print("Before cleaning: ", self.active_connectable_addresses)
+                            self.clean_active_connectable_addresses()   # just for ttesting
+#                            print("After cleaning: ", self.active_connectable_addresses)
+                            
                             rec_connectable_addresses = []
                             rec_data = msg[1:].split(",")
                             
                             for addr in rec_data:
                                 temp = addr.split(":")  # bring into tuple format
                                 rec_connectable_addresses.append((temp[0],int(temp[1])))
+                             
+                            if not (set(rec_connectable_addresses) == set(self.active_connectable_addresses)): # check if peer lists are equal
                                 
-                            if not set(rec_connectable_addresses) == set(self.active_connectable_addresses): # check if peer lists are equal
                                 for rec_peer in rec_connectable_addresses:
+                                    existing = False
                                     for peer in self.active_connectable_addresses:
-                                        if not (peer[0] == rec_peer[0] and peer[1] == rec_peer[1]):     # append new addresses
-                                            self.active_connectable_addresses.append((rec_peer[0],rec_peer[1]))
-                                
+                                        if (peer[0] == rec_peer[0] and peer[1] == rec_peer[1]):     
+                                            existing = True
+                                            break
+                                    if not existing:
+                                        self.active_connectable_addresses.append((rec_peer[0],rec_peer[1]))     # append new addresses
+                                        # appending already included in new connection function
+                                        self.create_new_connection((rec_peer[0],rec_peer[1]))
+                                            
                                 self.clean_active_connectable_addresses()
                                 self.send_active_connectable_addresses()
                                 self.store_addresses()
+                                
                             
+                        elif mode == 13:
+                            # peer went offline notification
+                            offline_peer = msg[1:].split(":")
+                            for addr in self.active_peers:
+                                if offline_peer[0] == addr[0] and int(offline_peer[1]) == addr[1]:
+                                    self.active_peers.remove(addr)
+                                    self.send_offline_peer(addr)
+                                    break   # considering that no redundant addresses in list
+                            
+                        elif mode == 14:
+                            # notification that connectable address not available anymore
+                            offline_peer = msg[1:].split(":")
+                            for addr in self.active_connectable_addresses:
+                                if offline_peer[0] == addr[0] and int(offline_peer[1]) == addr[1]:
+                                    self.active_connectable_addresses.remove(addr)
+                                    self.send_offline_connectable_address(addr)
+                                    break   # considering that no redundant addresses in list
+                                    
+                                    
                         elif mode == 31:
                                 # Synchronization request
                                 if self.cb_send_sync_message is not None:
@@ -824,13 +888,12 @@ class Peer:
         The list of all active connectable addresses is taken and send over every connection as a byte stream.
         A dedicated information is output to the user.
         """
-        
         p = self.get_active_connectable_addresses()
         
         if p:
             if addr:
                 addr.send(b'\x12' + bytes(p, "utf-8") + b'!')
-#                print("Connectable addresses sent")
+                print("Connectable addresses sent to freshly connected peer")
             else:
                 for address in self.connections:
                     address.send(b'\x12' + bytes(p, "utf-8") + b'!')
@@ -865,6 +928,36 @@ class Peer:
             IP address of peer to send graph to
         """
         pass
+    
+    def send_offline_peer(self, address):
+       """ Sends notification to all connected peers that another peer went offline
+       Sends the address of its client socket over that it was connected to this host
+       
+       Parameters
+       ----------
+       address : (str,int)
+           tuple of IP address and port number of peer that went offline
+       """
+       
+       p = address[0] + ":" + str(address[1])
+       for peer in self.connections:
+            peer.send(b'\x13' + bytes(p, "utf-8") + b'!')
+       print("Notified connected peers that {} is offline".format(p))
+            
+    def send_offline_connectable_address(self, address):
+        """ Sends notification to all connected peers that another peer went offline.
+        Sends the address of its connectable address
+       
+        Parameters
+        ----------
+        address : (str,int)
+        tuple of IP address and port number of peer that went offline
+        """
+   
+        p = address[0] + ":" + str(address[1])
+        for peer in self.connections:
+            peer.send(b'\x14' + bytes(p, "utf-8") + b'!')
+        print("Notified connected peers that {} is offline".format(p))
     
     def send_port(self, address, socket=None):
         """ Sends address with port number for establishing connection to this host
