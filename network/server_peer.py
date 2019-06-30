@@ -10,6 +10,7 @@ import socket
 import threading
 import os
 import json
+
 import core
 
 
@@ -43,13 +44,13 @@ class ServerPeer:
     active_peers = []
     lock = threading.Lock()     # To lock main thread after establishing connection
 
-    
+
     #cb_list_chain = None
     #cb_send_sync_message = None
     #cb_send_subchain_message = None
     synchronization_finished_event = threading.Event()
     synchronization_subchain_event = threading.Event()
-    
+
     def __init__(self, list_chain=None, send_sync_message=None, send_subchain_message=None, start_sync=None):
         """ Constructor that initiats general server functions
         
@@ -60,45 +61,45 @@ class ServerPeer:
         Moreover, the list of all active peers is send.
         
         """
-        
+
         hostname = socket.gethostname()
         hostaddr = socket.gethostbyname(hostname)
         self.active_peers.append(hostaddr)
-        
+
         server_thread = threading.Thread(target=self.listen_for_connections)
         server_thread.daemon = True
         server_thread.start()
-        
+
         self.cb_list_chain = list_chain
         self.cb_start_sync = start_sync
         self.cb_send_sync_message = send_sync_message
         self.cb_send_subchain_message = send_subchain_message
-        
-        
-        
+
+
+
         command_thread = threading.Thread(target=self.command_handler)
         command_thread.daemon = True
         command_thread.start()
-        
+
         self.synchronization_request_answers = []
         self.synchronization_chain = None
-        
+
         self.lock.acquire()
         self.lock.acquire()  # call two times to lock main thread
-        
+
     def listen_for_connections(self):
         """ Makes sure that peers can connect to this host.
-        
+
         Creates an own thread for each incoming connection.
         """
-        
+
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         self.sock.bind(('0.0.0.0',10000))
         self.sock.listen(1)
         
         print("Server running...")
-        
+
         while True:
             conn,addr = self.sock.accept()
             thread = threading.Thread(target=self.connection_handler, args=(conn,addr))
@@ -118,7 +119,7 @@ class ServerPeer:
         
         while True:
             try:
-                
+
                 i = input()
                 if i == "peers":
                     p = self.get_active_peers()
@@ -131,7 +132,7 @@ class ServerPeer:
                 else:
                     for connection in self.connections:
                         connection.send(bytes(str(i),'utf-8'))
-                        
+
             except EOFError:
                 os._exit(1)
             except KeyboardInterrupt:
@@ -139,7 +140,7 @@ class ServerPeer:
             except TypeError:
                 if i == "sync":
                     print("Can not synchronize")
-    
+
     def connection_handler(self, conn, addr):
         """ Manages connections to client peers
         
@@ -155,7 +156,7 @@ class ServerPeer:
         
         while True:
             try:
-                
+
                 data = conn.recv(1024)
                 if not data:
                     print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
@@ -164,7 +165,7 @@ class ServerPeer:
                     conn.close()
                     self.send_active_peers()
                     break
-                
+
                 mode = int(bytes(data).hex()[0:2])
                 if mode == 31:
                     # Synchronization request
@@ -193,11 +194,11 @@ class ServerPeer:
                 else:
                     for connection in self.connections:
                         connection.send(bytes(data))
-                        
+
             except ConnectionResetError or ConnectionAbortedError:
                 print("Connection closed.")
                 return
-    
+
 #    def connect_to_net(self):
 #        pass
 #    
@@ -285,9 +286,9 @@ class ServerPeer:
 
 if __name__ == '__main__':
     server = ServerPeer()
-    
-    
-    
-    
+
+
+
+
 #server = ServerPeer()
     
