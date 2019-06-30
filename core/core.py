@@ -77,9 +77,9 @@ def verifyTransmission(transmission: Transmission):
     if not transmission.check_self():
         return False
 
-    for key in transmission.pub_keys:
-        if not registry.key_exists(key):
-            return False
+    #for key in transmission.pub_keys:
+    #    if not registry.key_exists(key):
+    #        return False
 
     return True
 

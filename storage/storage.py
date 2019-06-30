@@ -2,8 +2,9 @@ from core import core, transmission
 from storage import config
 import plyvel
 import json
+import os
 
-db = plyvel.DB(config.get('database', 'path'), create_if_missing=True)
+db = plyvel.DB(config.get('database', 'path') + os.getenv("DB_LOC"), create_if_missing=True)
 
 
 def get_head():

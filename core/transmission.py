@@ -61,6 +61,9 @@ class Transmission:
             result.append(Transmission.from_json(entry))
         return result
 
+    def unsigned_transmission_hash(self):
+        return signing.unsign(self.transmission_hash, self.pub_keys)
+
     def is_valid(self):
         if self.previous_hash is None or self.previous_hash == "":
             return False

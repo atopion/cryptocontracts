@@ -52,18 +52,26 @@ if __name__ == '__main__':
                 storage.put_block(t2)
 
         elif test == 2:
-            if test < 100:
+            if unit < 100:
                 storage.put_block(t1)
             else:
                 storage.put_block(t1)
                 storage.put_block(t2)
 
         elif test == 3:
-            if test < 66:
+            if unit < 66:
                 storage.put_block(t1)
-            elif test < 132:
+            elif unit < 132:
                 storage.put_block(t1)
                 storage.put_block(t2)
+            else:
+                storage.put_block(t1)
+                storage.put_block(t2)
+                storage.put_block(t3)
+
+        elif test == 4:
+            if unit == 1:
+                storage.put_block(t1)
             else:
                 storage.put_block(t1)
                 storage.put_block(t2)
