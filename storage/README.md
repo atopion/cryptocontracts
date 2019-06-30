@@ -3,7 +3,6 @@ Storage controller. Put blocks into / get blocks from the database.
 ```
 from storage import storage
 
-storage.init_chain()
 storage.put_block(Transmission(...))
 
 subchain = storage.get_subchain(targetBlockHash) # [ head, ... , target]

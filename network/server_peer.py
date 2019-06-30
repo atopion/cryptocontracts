@@ -10,7 +10,6 @@ import socket
 import threading
 import os
 import json
-
 import core
 
 
@@ -40,18 +39,18 @@ class ServerPeer:
         Sends latest version of graph to peer specified in address
     """    
     
+    active_connectable_addresses = []
     connections = []
     active_peers = []
     lock = threading.Lock()     # To lock main thread after establishing connection
-
-
+    
     #cb_list_chain = None
     #cb_send_sync_message = None
     #cb_send_subchain_message = None
     synchronization_finished_event = threading.Event()
     synchronization_subchain_event = threading.Event()
-
-    def __init__(self, list_chain=None, send_sync_message=None, send_subchain_message=None, start_sync=None):
+    
+    def __init__(self, list_chain=None, send_sync_message=None, send_subchain_message=None, start_sync=None, port=None):
         """ Constructor that initiats general server functions
         
         A socket object is created, bind and starts listening to connections.
@@ -61,54 +60,58 @@ class ServerPeer:
         Moreover, the list of all active peers is send.
         
         """
-
+        
+        if port == None:
+            port = 10000
+        
         hostname = socket.gethostname()
         hostaddr = socket.gethostbyname(hostname)
-        self.active_peers.append(hostaddr)
-
+        self.active_peers.append((hostaddr,port))
+        
         server_thread = threading.Thread(target=self.listen_for_connections)
         server_thread.daemon = True
         server_thread.start()
-
+        
         self.cb_list_chain = list_chain
         self.cb_start_sync = start_sync
         self.cb_send_sync_message = send_sync_message
         self.cb_send_subchain_message = send_subchain_message
-
-
-
+        
+        
+        
         command_thread = threading.Thread(target=self.command_handler)
         command_thread.daemon = True
         command_thread.start()
-
+        
         self.synchronization_request_answers = []
         self.synchronization_chain = None
-
+        
         self.lock.acquire()
         self.lock.acquire()  # call two times to lock main thread
-
+        
     def listen_for_connections(self):
         """ Makes sure that peers can connect to this host.
-
+        
         Creates an own thread for each incoming connection.
         """
-
+        
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         self.sock.bind(('0.0.0.0',10000))
         self.sock.listen(1)
         
         print("Server running...")
-
+        
         while True:
-            conn,addr = self.sock.accept()
+            conn, addr = self.sock.accept()
             thread = threading.Thread(target=self.connection_handler, args=(conn,addr))
             thread.daemon = True
             thread.start()
             self.connections.append(conn)
-            self.active_peers.append(addr[0])
+            self.active_peers.append(addr)
             print(str(addr[0]) + ':' + str(addr[1]),"connected")
             self.send_active_peers()
+            self.send_active_connectable_addresses()
             
         
     def command_handler(self):
@@ -119,20 +122,25 @@ class ServerPeer:
         
         while True:
             try:
-
+                
                 i = input()
                 if i == "peers":
                     p = self.get_active_peers()
+                    print(p)
+                elif i == "connectable":
+                    p = self.get_active_connectable_addresses()
                     print(p)
                 elif i == "list":
                     if self.cb_list_chain is not None:
                         self.cb_list_chain()
                 elif i == "sync":
                     self.cb_start_sync()
+#                elif i == "connections":
+#                    print(self.connections)
                 else:
                     for connection in self.connections:
                         connection.send(bytes(str(i),'utf-8'))
-
+                        
             except EOFError:
                 os._exit(1)
             except KeyboardInterrupt:
@@ -140,7 +148,7 @@ class ServerPeer:
             except TypeError:
                 if i == "sync":
                     print("Can not synchronize")
-
+    
     def connection_handler(self, conn, addr):
         """ Manages connections to client peers
         
@@ -156,17 +164,37 @@ class ServerPeer:
         
         while True:
             try:
-
+                
                 data = conn.recv(1024)
                 if not data:
                     print(str(addr[0]) + ":" + str(addr[1]),"disconnected")
                     self.connections.remove(conn)
-                    self.active_peers.remove(addr[0])
+                    self.active_peers.remove(addr)
                     conn.close()
                     self.send_active_peers()
                     break
-
+                
+                print("RECEIVED: ", data, "\n")
                 mode = int(bytes(data).hex()[0:2])
+                
+                if mode == 11:
+                    rec_data = str(data[1:], "utf-8").split(",")
+                    for addr in rec_data:
+                        temp = addr.split(":")  # bring into tuple format
+                        self.active_peers.append((temp[0],int(temp[1])))
+                        
+#                    self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")
+                    self.clean_active_peers()
+                    
+                if mode == 12:
+                    rec_data = str(data[1:], "utf-8").split(",")
+                    for addr in rec_data:
+                        temp = addr.split(":")  # bring into tuple format
+                        self.active_connectable_addresses.append((temp[0],int(temp[1])))
+                        
+#                    self.active_peers = self.active_peers + str(data[1:], "utf-8").split(",")
+                    self.clean_active_connectable_addresses()
+                
                 if mode == 31:
                     # Synchronization request
                     if self.cb_send_sync_message is not None:
@@ -194,16 +222,38 @@ class ServerPeer:
                 else:
                     for connection in self.connections:
                         connection.send(bytes(data))
-
+                        
             except ConnectionResetError or ConnectionAbortedError:
                 print("Connection closed.")
                 return
-
+    
 #    def connect_to_net(self):
 #        pass
 #    
 #    def disconnect_from_net(self):
 #        pass
+    
+    def get_active_connectable_addresses(self):
+        """ Returns the list of all peers currently connected to the net/server peer with their port numbers to connect to
+        
+        The peer IP addresses and port numbers are taken from the object variable active_connectable_addresses and are joined in a String
+        
+        Returns
+        -------
+        string
+            a string representing the IP addresses of the currently connected peers
+        """
+        
+        if self.active_connectable_addresses:
+            p = self.active_connectable_addresses[0][0] + ":" + str(self.active_connectable_addresses[0][1])
+        
+            for peer in self.active_connectable_addresses[1:]:
+    #            p = p + peer + ","
+                p = p +  "," + peer[0] + ":" + str(peer[1]) 
+        else:
+            p = None
+            
+        return p
     
     def get_active_peers(self):
         """ returns the list of all peers currently connected to this net/server peer
@@ -215,10 +265,16 @@ class ServerPeer:
         string
             a string representing the IP addresses of the currently connected peers
         """
+
+        if self.active_peers:
+            p = self.active_peers[0][0] + ":" + str(self.active_peers[0][1])
         
-        p = ""
-        for peer in self.active_peers:
-            p = p + peer + ","
+            for peer in self.active_peers[1:]:
+    #            p = p + peer + ","
+                p = p +  "," + peer[0] + ":" + str(peer[1]) 
+        else:
+            p = None
+            
         return p
     
     
@@ -235,6 +291,22 @@ class ServerPeer:
         
         pass
     
+    def send_active_connectable_addresses(self):
+        """ Sends the list of active connectable addresses to all peers connected to this host.
+        
+        The list of all active connectable addresses is taken and send over every connection as a byte stream.
+        A dedicated information is output to the user.
+        """
+        
+        p = self.get_active_connectable_addresses()
+
+        if p:
+            for address in self.connections:
+                address.send(b'\x12' + bytes(p, "utf-8"))
+            print("connectable addresses sent!")
+        else:
+            print("Wanted to send connectable address list but it is empty!")
+                
     def send_active_peers(self):
         """ Sends the list of active peers to all the clients connected to this server.
         
@@ -243,10 +315,13 @@ class ServerPeer:
         """
         
         p = self.get_active_peers()
-
-        for connection in self.connections:
-            connection.send(b'\x11' + bytes(p, "utf-8"))
-        print("peer list sent!")
+        if p:
+            
+            for connection in self.connections:
+                connection.send(b'\x11' + bytes(p, "utf-8"))
+            print("peer list sent!")
+        else:
+            print("Wanted to send peer list, but it is empty!")
     
     
     def send_graph(self, address):
@@ -286,9 +361,9 @@ class ServerPeer:
 
 if __name__ == '__main__':
     server = ServerPeer()
-
-
-
-
+    
+    
+    
+    
 #server = ServerPeer()
     

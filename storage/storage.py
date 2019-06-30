@@ -1,25 +1,18 @@
+from core import core, transmission
+from storage import config
 import plyvel
 import json
 
-#from storage.block import Block
-#from core.core import Transmission
-import core.core
-from storage import config
-
-# TODO debugging controls: remove this
-plyvel.destroy_db(config.get('database', 'path'))
-
-
 db = plyvel.DB(config.get('database', 'path'), create_if_missing=True)
+
 
 def get_head():
 	return db.get('head'.encode('utf-8')).decode('utf-8')
 def _set_head(blockId):
 	db.put('head'.encode('utf-8'), blockId.encode('utf-8'))
 
-
 def put_block(block):
-	if not isinstance(block, core.core.Transmission):
+	if not isinstance(block, transmission.Transmission):
 		raise TypeError('Not a Core.Transmission block object')
 
 	assert block.previous_hash == get_head()
@@ -28,7 +21,14 @@ def put_block(block):
 	_set_head(block.transmission_hash)
 	
 def get_block(blockId):
-	return core.core.Transmission.from_json(db.get(blockId.encode('utf-8')).decode('utf-8'))
+	block = db.get(blockId.encode('utf-8'))
+	if block is None:
+		raise KeyError('blockId does not exist: ' + blockId)
+	return transmission.Transmission.from_json(block.decode('utf-8'))
+
+def block_exists(blockId):
+	return db.get(blockId.encode('utf-8')) is not None
+
 
 def get_subchain(targetBlockId):
 	target = get_block(targetBlockId)
@@ -44,18 +44,14 @@ def get_subchain(targetBlockId):
 	chain.append(target)
 	return chain
 
-def exists(blockId):
-	return db.get(blockId.encode('utf-8'))is not None
-
-def init_chain():
-	#TODO put proper root block
-	#_set_head('ROOT')
-	t = core.core.Core.produceTransmission("ROOT", ["a", "b"], "texttexttext")
-	db.put(t.transmission_hash.encode('utf-8'), t.to_json().encode('utf-8'))
-	_set_head(t.transmission_hash)
-
 def print_chain(chain):
 	print('[%s]' % ','.join([block.to_json() for block in chain]) )
 def print_all():
 	print('[%s]' % ','.join([value.decode('utf-8') for key,value in db if key.decode('utf-8') != 'head']) )
+
+
+# init empty db with root block
+if db.get('head'.encode('utf-8')) is None:
+	_set_head('ROOT')
+	put_block(core.produceTransmission('ROOT', ['ROOT_KEY_1', 'ROOT_KEY_2'], 'ROOT_DOCUMENT_HASH'))
 

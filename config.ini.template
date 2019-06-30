@@ -4,20 +4,23 @@
 [hash]
 documents=blake:whirlpool:sha3_512
 
+[server]
+port=9000
 
 ;; blockchain database location on filesystem (will be created if missing)
 [database]
 path=/tmp/cryptocontracts/
 
-
 ;; public key registry
-[key-server]
+[registry]
 addr=
-auth=
+user=
+pass=
 
 ;; public server from which to request initial ip list for network join
 [ip-server]
 addr=
-auth=
+user=
+pass=
 
 
