@@ -860,8 +860,20 @@ class Peer:
                                 self.cb_send_subchain_message(sock, hash)
 
                         elif mode == 34:
+                            
+                            try:
+                                rec_data = msg[1:].split("&")
+                                length = int(rec_data[0])
+                                all_data = rec_data[1]
+                                while len(all_data) < length:
+                                    to_read = length - len(all_data)
+                                    all_data += str(sock.recv(4096 if to_read > 4096 else to_read))
+                            except Exception as e:
+                                print("Could not send receive subchain \n")
+                                print("Reason: ",e)
+                            
                             # Subchain answer
-                            self.synchronization_chain = core.core.Transmission.list_from_json(str(msg[1:])[2:-1].replace("\\\\", "\\"))
+                            self.synchronization_chain = core.core.Transmission.list_from_json(all_data[2:-1].replace("\\\\", "\\"))
                             self.synchronization_subchain_event.set()
                         # if no prefix consider data a message and print it
                         else:
@@ -1017,7 +1029,11 @@ class Peer:
         return self.synchronization_chain
 
     def send_subchain(self, conn, obj):
-        conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8"))
+        chain = bytes(json.dumps([x.to_json() for x in obj]), "utf-8")
+        length = len(chain)
+        # send prefix, length of data and chain. ! and & used for separation
+        conn.send(b'\x34' + bytes(length, "utf-8") + b'&' + chain + b'!')
+#        conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8") + b'!')
 
 
 if __name__ == '__main__':
