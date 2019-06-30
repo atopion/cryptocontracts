@@ -991,13 +991,13 @@ class Peer:
         last_addresses.write(self.get_active_connectable_addresses())
         last_addresses.close()
             
-    def send_synchronize_request(self,sock):
+    def send_synchronize_request(self):
         print("SEND REQUEST")
         # TODO multiple connections
-        #for conn in self.connections:
-        #    conn.send(b'\x31')
-#        self.sock_client.send(b'\x31')
-        sock.send(b'\x31')
+        for conn in self.connections:
+            conn.send(b'\x31!')
+#       # self.sock_client.send(b'\x31')
+        # sock.send(b'\x31')
 
         self.synchronization_finished_event.wait(30)
         res = self.synchronization_request_answers

@@ -28,7 +28,7 @@ class Transmission:
         sign = bytearray(self.signed_hash, "utf-8")
         comb = prev + time + pubs + hash + sign
         own_hash = cryptoHashes.CryptoHashes.sha3_512(comb)
-        return Core.compare(own_hash, self.transmission_hash)
+        return core.compare(own_hash, self.transmission_hash)
 
     def to_json(self):
         x = {
@@ -52,6 +52,14 @@ class Transmission:
         transmission.signed_hash = x["hash"]
         transmission.transmission_hash = x["transmission_hash"]
         return transmission
+
+    @staticmethod
+    def list_from_json(json_str: str):
+        l = json.loads(json_str)
+        result = []
+        for entry in l:
+            result.append(Transmission.from_json(entry))
+        return result
 
     def is_valid(self):
         if self.previous_hash is None or self.previous_hash == "":

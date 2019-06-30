@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QMainWindow, QAction, qApp, QApplication, QPushButt
                              QLineEdit, QFileDialog as Dialog)
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QUrl
-from Core import core
+#from core import core
 
 
 class GUI(QMainWindow):

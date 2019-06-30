@@ -1,4 +1,6 @@
-import core.core
+from storage import config, storage
+from core import core, client, server
+from GUI import gui
 import sys
 
 """
@@ -10,16 +12,15 @@ if __name__ == '__main__':
         if str(arg).lower() == "client":
             if len(sys.argv) > 2:
                 addr = sys.argv[2]
-                core.core.Client(addr)
+                client.Client(addr)
             else:
-                core.core.Client()
+                client.Client()
         elif str(arg).lower() == "server":
-            core.core.Server()
+            server.Server()
         else:
-            core.core.Server()
+            server.Server()
     else:
-        core.core.Server()
-"""
+        server.Server()"""
 
 if __name__ == '__main__':
     if not len(sys.argv) == 4:
@@ -34,42 +35,53 @@ if __name__ == '__main__':
         print("Irregular arguments (no integers)")
         sys.exit(1)
 
-    core.core.storage.init_chain()
-    prev = core.core.storage.get_block(core.core.storage.get_head())
-    t1 = core.core.Core.produceTransmission(prev.transmission_hash, ["a", "b"], "document-1")
-    t2 = core.core.Core.produceTransmission(t1.transmission_hash, ["c", "d"], "document-2")
-    t3 = core.core.Core.produceTransmission(t2.transmission_hash, ["e", "f"], "document-3")
+    prev = storage.get_block(storage.get_head())
+    t1 = core.core.produceTransmission(prev.transmission_hash, ["a", "b"], "document-1")
+    t2 = core.core.produceTransmission(t1.transmission_hash, ["c", "d"], "document-2")
+    t3 = core.core.produceTransmission(t2.transmission_hash, ["e", "f"], "document-3")
 
     if mode == "server":
-        core.core.Server()
+        server.Server()
 
     elif mode == "client":
         if  test == 1:
             if unit == 1:
-                core.core.storage.put_block(t1)
+                storage.put_block(t1)
             else:
-                core.core.storage.put_block(t1)
-                core.core.storage.put_block(t2)
+                storage.put_block(t1)
+                storage.put_block(t2)
 
         elif test == 2:
             if test < 100:
-                core.core.storage.put_block(t1)
+                storage.put_block(t1)
             else:
-                core.core.storage.put_block(t1)
-                core.core.storage.put_block(t2)
+                storage.put_block(t1)
+                storage.put_block(t2)
 
         elif test == 3:
             if test < 66:
-                core.core.storage.put_block(t1)
+                storage.put_block(t1)
             elif test < 132:
-                core.core.storage.put_block(t1)
-                core.core.storage.put_block(t2)
+                storage.put_block(t1)
+                storage.put_block(t2)
             else:
-                core.core.storage.put_block(t1)
-                core.core.storage.put_block(t2)
-                core.core.storage.put_block(t3)
+                storage.put_block(t1)
+                storage.put_block(t2)
+                storage.put_block(t3)
 
         # TODO more
 
-        client = core.core.Client()
+        client = client.Client()
         client.client.connect_to_net()
+
+stylesheet = """
+    GUI {
+    border-image: url("blockchain.png"); 
+    background-repeat: no-repeat; 
+    background-position: center;}"""
+
+"""if __name__ == '__main__':
+    app = gui.QApplication(sys.argv)
+    app.setStyleSheet(stylesheet)
+    ex = gui.GUI()
+    sys.exit(app.exec_())"""
