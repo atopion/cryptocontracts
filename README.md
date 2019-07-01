@@ -69,3 +69,14 @@ Sebastian Rahe, Tobias Haar, René Lars Wetzelt, Stefan Pfeiffer and Timon Vogt
 | *Talk preparations* | 60 | All |
 | *Use case example* | 30 | All |
 
+
+# Install & Run
+
+## Dependencies
+* python3
+* python3 modules: plyvel, numpy, PyQt5, requests
+
+## Environment Overrides
+* DB\_PATH\_OVERRIDE : Overrides database.path from config.ini
+
+

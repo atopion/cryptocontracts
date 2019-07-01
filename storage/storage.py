@@ -4,8 +4,7 @@ import plyvel
 import json
 import os
 
-db = plyvel.DB(config.get('database', 'path') + os.getenv("DB_LOC"), create_if_missing=True)
-
+db = plyvel.DB(os.getenv('DB_PATH_OVERRIDE', config.get('database', 'path')), create_if_missing=True)
 
 def get_head():
 	return db.get('head'.encode('utf-8')).decode('utf-8')
