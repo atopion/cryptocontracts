@@ -19,10 +19,10 @@ class Client:
                            receive_message=self.react_to_receive_messsage)
 
     @staticmethod
-    def list_chain(self):
+    def list_chain():
         print("CHAIN:")
         storage.print_all()
-        print("HEAD: ", storage.get_head())
+        #print("HEAD: ", storage.get_head())
 
     def react_to_sync_request(self, conn):
         t = storage.get_block(storage.get_head())
@@ -32,6 +32,7 @@ class Client:
             "transmission_hash_signed": signing.sign(t.unsigned_transmission_hash(), signing.OWN_PRIVATE_KEY)
         }
         self.client.send_sync_request_answer(conn, x)
+        print("INCOMING REMOTE SYNC REQUEST")
 
     def react_to_subchain_request(self, conn, transmission_hash):
         subchain = storage.get_subchain(transmission_hash)
@@ -43,16 +44,19 @@ class Client:
             return
 
         if not core.compare(transmission.transmission_hash,
-                            storage.get_block(storage.get_head()).unsigned_transmission_hash()):
+            storage.get_block(storage.get_head()).unsigned_transmission_hash()):
+            print("REMOTE SYNC REJECTED")
             return
 
         if not core.verify_transmission(transmission):
+            print("REMOTE SYNC REJECTED")
             return
 
         storage.put_block(transmission)
+        print("REMOTE SYNC ACCEPTED")
 
     @staticmethod
-    def react_to_received_subchain(self, subchain):
+    def react_to_received_subchain(subchain):
         if subchain is None:
             return
 
@@ -113,6 +117,7 @@ class Client:
                 subchain = storage.get_subchain(maj["hash"])
                 subchain.reverse()
                 self.client.send_n1_subchain(subchain)
+                print("SYNC SUCCESS")
                 return SUCCESS
 
             succeeded = False
