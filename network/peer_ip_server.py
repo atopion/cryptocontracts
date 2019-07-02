@@ -13,6 +13,7 @@ import random
 import json
 import sys
 import time
+import datetime
 from network import ip_server
 import core
 from core.transmission import Transmission
@@ -143,66 +144,68 @@ class Peer:
         chosen randomly. If none is active the program is quit.
         """
         
-        connected = False
-        if self.fixed_server == False:
-            
-
-#            not necessary anymore cause own address removed before shutdown
-#            try:
-#                self.last_addresses.remove(self.get_host_addr())
-#            except:
-#                pass
-            host_addr = self.get_host_addr()
-            while connected == False:
-                
-                if len(self.active_connectable_addresses) > 1 : # evoid endless looping when only own address is in list
-                    chosen_addr = random.choice(self.active_connectable_addresses)
-                    
-
-                elif not self.last_addresses:
-                    print("No peer is online, host will start and wait for incoming connections")
-                    break
-
-                else:
-                    chosen_addr = random.choice(self.last_addresses)
-
-                if not (chosen_addr[0] == host_addr[0] and chosen_addr[1] == host_addr[1]):     # do not connect to own address
-                    print("Trying to connect to {}:{}".format(chosen_addr[0],str(chosen_addr[1])))
-                    connected = self.create_new_connection(chosen_addr)
-                    if connected:
-                        self.active_connectable_addresses.append(self.get_host_addr())
-                        self.store_addresses()
-
-
-#                        try:
-#                            self.send_port(chosen_addr, self.sock_client)
-#                        except:
-#                            print("Could not send own address!")
-
-                    else:
-                        try:
-                            self.last_addresses.remove(chosen_addr)
-                        except Exception as e:
-                            print("Can not remove chosen address from last_addresses. Exception: ", e)
-
-
-        # server address specified on execution
-        else:
-            try:    # address can either contain a port number or not
-#                self.sock_client.connect(self.server_address)
-                self.create_new_connection(self.server_address)
-                connected = True
-#                print("connected to server {}:{}".format(self.server_address[0],str(self.server_address[1])))
-#                self.active_connectable_addresses.append(self.get_host_addr())
-            except:
-                print("Could not connect to specified address. Host will start and wait for connections")
+        pass
+        
+#        connected = False
+#        if self.fixed_server == False:
+#            
 #
-        return connected
+##            not necessary anymore cause own address removed before shutdown
+##            try:
+##                self.last_addresses.remove(self.get_host_addr())
+##            except:
+##                pass
+#            host_addr = self.get_host_addr()
+#            while connected == False:
+#                
+#                if len(self.active_connectable_addresses) > 1 : # evoid endless looping when only own address is in list
+#                    chosen_addr = random.choice(self.active_connectable_addresses)
+#                    
+#
+#                elif not self.last_addresses:
+#                    print("No peer is online, host will start and wait for incoming connections")
+#                    break
+#
+#                else:
+#                    chosen_addr = random.choice(self.last_addresses)
+#
+#                if not (chosen_addr[0] == host_addr[0] and chosen_addr[1] == host_addr[1]):     # do not connect to own address
+#                    print("Trying to connect to {}:{}".format(chosen_addr[0],str(chosen_addr[1])))
+#                    connected = self.create_new_connection(chosen_addr)
+#                    if connected:
+#                        self.active_connectable_addresses.append(self.get_host_addr())
+#                        self.store_addresses()
+#
+#
+##                        try:
+##                            self.send_port(chosen_addr, self.sock_client)
+##                        except:
+##                            print("Could not send own address!")
+#
+#                    else:
+#                        try:
+#                            self.last_addresses.remove(chosen_addr)
+#                        except Exception as e:
+#                            print("Can not remove chosen address from last_addresses. Exception: ", e)
+#
+#
+#        # server address specified on execution
+#        else:
+#            try:    # address can either contain a port number or not
+##                self.sock_client.connect(self.server_address)
+#                self.create_new_connection(self.server_address)
+#                connected = True
+##                print("connected to server {}:{}".format(self.server_address[0],str(self.server_address[1])))
+##                self.active_connectable_addresses.append(self.get_host_addr())
+#            except:
+#                print("Could not connect to specified address. Host will start and wait for connections")
+##
+#        return connected
     
     def connect_to_all(self):
-        print("Starting to connect to all peers in the net")
+        print("{}: Starting to connect to all peers in the net \n".format(self.get_time()))
         for peer in self.active_connectable_addresses:
-            print("connecting to {}:{}".format(peer[0],peer[1]))
+            print("{}: Connecting to {}:{} \n".format(self.get_time(),peer[0],peer[1]))
             self.create_new_connection(peer)
 
     def clean_active_connectable_addresses(self):
@@ -342,21 +345,20 @@ class Peer:
         server_thread.daemon = True
         server_thread.start()
         
+        print("{}: Host now accepts connections".format(self.get_time()))
         
         time.sleep(1)    # so server_thread has time to bind socket and assign port
         host_addr = self.get_host_addr()
         self.active_connectable_addresses.append(host_addr)
 #        self.store_addresses()
-        print("Host address: ", host_addr)
+        print("{}: Host address: {}".format(self.get_time(),host_addr))
         
         self.active_connectable_addresses = self.get_peers_from_ip_server()
-        
-        print(self.active_connectable_addresses)
+        print("{}: Pulling active nodes from IP server \n".format(self.get_time()))
+        print("{}: Active nodes in the network: {} \n".format(self.get_time(),self.active_connectable_addresses))
         
         ip_server.add_self(self.port)
         self.connect_to_all()
-
-        print("not refreshing yet")
 
         refreshing_thread = threading.Thread(target=self.refresh_connections)
         refreshing_thread.daemon = True
@@ -416,11 +418,11 @@ class Peer:
                     if (peer[0] == addr[0] and peer[1] == addr[1]):
                         existing = True
                 if not existing:
-                    print("Could not connect to {}:{} due to a timeout".format(addr[0],str(addr[1])))
+                    print("{}: Could not connect to {}:{} due to a timeout".format(self.get_time(),addr[0],str(addr[1])))
                 
                 connected = True
             except Exception as e:
-                print("Could not connect to {}:{} \n Reason: {}".format(addr[0],str(addr[1]),e))
+                print("{}: Could not connect to {}:{} \n Reason: {}".format(self.get_time(),addr[0],str(addr[1]),e))
 
         return connected
 
@@ -432,7 +434,7 @@ class Peer:
         thread = threading.Thread(target=self.outgoing_connection_handler, args=(addr,sock))
         thread.daemon = True
         thread.start()
-        print("Connected to " + addr[0] + ":" + str(addr[1]))
+        print("{}: Connected to {}:{}".format(self.get_time(),addr[0], str(addr[1])))
         
     def disconnect_from_net(self):
         """Disconnects from the network/server peer
@@ -575,6 +577,18 @@ class Peer:
                 p = p + "," + peer[0] + ":" + str(peer[1])
 
         return p
+    
+    def get_time(self):
+        """ Returns the current time
+        
+        Returns
+        -------
+        time : float
+            the current time
+        """
+        time = datetime.datetime.now().time()
+        
+        return time
 
     def incoming_connection_handler(self, conn, address):
         """ Manages connections to other peers
@@ -625,7 +639,7 @@ class Peer:
 #                    self.send_offline_peer(address) # notify connected peers that one peer went offline
                     break
 
-                print("From {}:{} received {} over incoming connection handler \n".format(address[0],str(address[1]),data))
+                print("{}: From {}:{} received {} over incoming connection handler \n".format(self.get_time(),address[0],str(address[1]),data))
 #                 mode = int(bytes(data).hex()[0:2])
 
 
@@ -723,28 +737,28 @@ class Peer:
                                 all_data = rec_data[1]
                                 while len(all_data) < length:
                                     to_read = length - len(all_data)
-                                    all_data += str(conn.recv(4096 if to_read > 4096 else to_read))
+                                    all_data += str(conn.recv(4096 if to_read > 4096 else to_read), "utf-8")
 
                                 if mode == 34:
                                     # Subchain answer
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\\\", "\\"))
+                                        all_data.replace("\\", ""))
                                     self.synchronization_subchain_event.set()
 
                                 else:
                                     # synchronizing node has more transmissions than the synchronizing partners
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\\\", "\\"))
+                                        all_data.replace("\\", ""))
                                     if self.cb_receive_subchain_message is not None:
                                         self.cb_receive_subchain_message(self.synchronization_chain)
 
                             except Exception as e:
-                                print("Could not send receive subchain \n")
-                                print("Reason: ", e)
+                                print("{}: Could not send receive subchain \n")
+                                print("{}: Reason: {} \n".format(self.get_time(),e))
 
                             # if no prefix consider data a message and print it
                         else:
-                            print("Message: ", msg)
+                            print("{}: Message: {}".format(self.get_time(),msg))
 
                             """elif mode == 34:
                                 # Subchain answer
@@ -753,7 +767,7 @@ class Peer:
                             # if no prefix consider data a message and print it"""
 
             except ConnectionResetError or ConnectionAbortedError:
-                print("Connection closed.")
+                print("{}: Connection closed.".format(self.get_time()))
                 os._exit(1)
 
 #        while True:
@@ -796,7 +810,7 @@ class Peer:
             self.clean_connected_peers()
             self.active_peers.append(addr)
             self.clean_active_peers()
-            print(str(addr[0]) + ':' + str(addr[1]),"connected")
+            print("{}: {}:{} connected \n".format(self.get_time(),str(addr[0]),str(addr[1])))
 #            self.send_active_peers()
     
     def outgoing_connection_handler(self, address, sock):
@@ -835,7 +849,7 @@ class Peer:
 #                    self.fixed_server = False   # When server peer goes offline, this peer needs to connect to another peer
 #                    self.choose_connection()
 
-                print("From {}:{} received {} \n".format(address[0],str(address[1]),data))
+                print("{}: From {}:{} received {} \n".format(self.get_time(),address[0],str(address[1]),data))
 #                 mode = int(bytes(data).hex()[0:2])
 
 
@@ -956,37 +970,37 @@ class Peer:
                                 all_data = rec_data[1]
                                 while len(all_data) < length:
                                     to_read = length - len(all_data)
-                                    all_data += str(sock.recv(4096 if to_read > 4096 else to_read))
+                                    all_data += str(sock.recv(4096 if to_read > 4096 else to_read), "utf-8")
 
                                 if mode == 34:
                                     # Subchain answer
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\\\", "\\"))
+                                        all_data.replace("\\", ""))
                                     self.synchronization_subchain_event.set()
 
                                 else:
                                     # synchronizing node has more transmissions than the synchronizing partners
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\\\", "\\"))
+                                        all_data.replace("\\", ""))
                                     self.cb_receive_subchain_message(self.synchronization_chain)
 
                             except Exception as e:
-                                print("Could not send receive subchain \n")
-                                print("Reason: ", e)
+                                print("{}: Could not send receive subchain \n".format(self.get_time()))
+                                print("{}: Reason: {} \n ".format(self.get_time()))
 
                         # if no prefix consider data a message and print it
                         else:
-                            print("Message: ", msg)
+                            print("{}: Message: {}".format(self.get_time()))
 
             except ConnectionResetError or ConnectionAbortedError:
-                print("Connection closed.")
+                print("{}: Connection closed.".format(self.get_time()))
                 os._exit(1)
 
     def refresh_connections(self):
         
         while True:
             time.sleep(30)
-            print("Refreshing connections...")
+            print("{}: Refreshing connections...".format(self.get_time()))
             online = self.get_peers_from_ip_server()
             for on in online:
                 existing = False
@@ -1034,16 +1048,6 @@ class Peer:
             print("peer list sent to all connected peers")
         else:
             print("Wanted to send active peer list but it is empty!")
-    
-    def send_graph(self, address):
-        """Sends latest version of graph to peer specified in address
-        
-        Parameters
-        ----------
-        address : str
-            IP address of peer to send graph to
-        """
-        pass
     
     def send_offline_peer(self, address):
        """ Sends notification to all connected peers that another peer went offline
@@ -1093,12 +1097,6 @@ class Peer:
             address.send(b'\x12' + bytes(p, "utf-8") + b'!')
         print("Own address sent to {}:{}".format(address[0], str(address[1])))
         
-        
-    def timing(self,thread_id):
-        time.sleep(30)
-        
-    
-
     def store_addresses(self):
         """ Stores the currently active peers in the network to file
         
@@ -1121,15 +1119,17 @@ class Peer:
         res = self.synchronization_request_answers
         self.synchronization_request_answers = []
         self.synchronization_finished_event = threading.Event()
+        print("{}: Synchronization Request sent \n".format(self.get_time()))
         return res
 
     def send_sync_request_answer(self, conn, obj):
         conn.send(b'\x32' + bytes(json.dumps(obj), "utf-8"))
+        print("{}: Synchronization Request Answer sent \n".format(self.get_time()))
 
     def request_subchain(self, msg, hash):
         self.synchronization_chain = None
         msg["conn"].send(b'\x33' + bytes(hash, "utf-8"))
-
+        print("{}: Subchain requested \n".format(self.get_time()))
         self.synchronization_subchain_event.wait(30)
         self.synchronization_subchain_event = threading.Event()
         return self.synchronization_chain
@@ -1138,18 +1138,21 @@ class Peer:
         chain = bytes(json.dumps([x.to_json() for x in obj]), "utf-8")
         length = len(chain)
         # send prefix, length of data and chain. ! and & used for separation
-        conn.send(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain + b'!')
+        conn.send(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain)
+        print("{}: Subchain sent \n".format(self.get_time()))
         # conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8") + b'!')
 
     def send_n1_subchain(self, obj):
         chain = bytes(json.dumps([x.to_json() for x in obj]), "utf-8")
         length = len(chain)
         for conn in self.connections:
-            conn.send(b'\x35' + bytes(str(length), "utf-8") + b'&' + chain + b'!')
+            conn.send(b'\x35' + bytes(str(length), "utf-8") + b'&' + chain)
+        print("{}: Subchain sent \n".format(self.get_time()))
 
     def send_transmission(self, transmission: Transmission):
         for conn in self.connections:
             conn.send(b'\x20' + bytes(json.dumps(transmission.to_json()), "utf-8"))
+        print("{}: Transmission sent \n".format(self.get_time()))
 
 
 if __name__ == '__main__':
