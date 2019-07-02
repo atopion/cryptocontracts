@@ -1,10 +1,15 @@
 import configparser
 
-configFilePath = './config.ini'
+import os.path
+
+configFilePath = os.path.join(os.path.abspath(os.path.dirname(__file__)), '../config.ini')
 
 conf = configparser.ConfigParser()
-conf.read(configFilePath)
+if(len(conf.read(configFilePath)) != 1):
+	raise FileNotFoundError('Config file missing: ' + configFilePath)
 
+
+# TODO move env overrides here
 
 def get(section, key):
 	if section not in conf:
