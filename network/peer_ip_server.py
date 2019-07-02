@@ -358,6 +358,9 @@ class Peer:
         print("{}: Active nodes in the network: {} \n".format(self.get_time(),self.active_connectable_addresses))
         
         ip_server.add_self(self.port)
+        print("{}: Host address added to IP Server \n".format(self.get_time()))
+        
+        print("{}: Trying to connect to all active nodes in the network".format(self.get_time()))
         self.connect_to_all()
 
         refreshing_thread = threading.Thread(target=self.refresh_connections)
@@ -401,6 +404,7 @@ class Peer:
         connected = False
         if not (existing or own):
             try:
+                print("{}: Trying to connect to {}:{}...".format(self.get_time(),addr[0],addr[1]))
                 connecting_thread = threading.Thread(target=self.establish_connection,args=(addr,))
                 connecting_thread.daemon = True
                 connecting_thread.start()
@@ -550,14 +554,22 @@ class Peer:
         return (host_addr,self.port)
     
     def get_peers_from_ip_server(self):
+        """ Gets the addresses of the active nodes in the network from the IP Server.
+        
+        Returns
+        -------
+        peer_addr : list of (str,int)
+            List of IP addresses and ports of the active nodes
+        """
+        
         online_peers = ip_server.get_all()
-        temp = []
+        peer_addr = []
         for peer in online_peers:
             ip = peer["ip"]
             port = int(peer["port"])
-            temp.append((ip,port))
+            peer_addr.append((ip,port))
             
-        return temp
+        return peer_addr
 
     def get_server_peers(self):
         """ Returns addresses of peers that are connected to this host
@@ -586,6 +598,7 @@ class Peer:
         time : float
             the current time
         """
+        
         time = datetime.datetime.now().time()
         
         return time
@@ -614,7 +627,7 @@ class Peer:
                 data = conn.recv(1024)
 
                 if not data:
-                    print(str(address[0]) + ":" + str(address[1]),"disconnected")
+                    print("{}: {}:{} disconnected \n".format(str(address[0]),str(address[1]),self.get_time()))
                     conn.close()
                     try:
                         self.connections.remove(conn)
@@ -824,8 +837,6 @@ class Peer:
         while True:
             try:
                 
-                # TODO check if single thread for each outgoing connection needed
-#                data = self.sock_client.recv(1024)
                 data = sock.recv(1024)
                 if not data:
                     try:
@@ -846,12 +857,8 @@ class Peer:
                     sock.close()
 
                     break
-#                    self.fixed_server = False   # When server peer goes offline, this peer needs to connect to another peer
-#                    self.choose_connection()
 
                 print("{}: From {}:{} received {} \n".format(self.get_time(),address[0],str(address[1]),data))
-#                 mode = int(bytes(data).hex()[0:2])
-
 
                 inputs = str(data, "utf-8").split("!")
 
@@ -986,7 +993,7 @@ class Peer:
 
                             except Exception as e:
                                 print("{}: Could not send receive subchain \n".format(self.get_time()))
-                                print("{}: Reason: {} \n ".format(self.get_time()))
+                                print("{}: Reason: {} \n ".format(self.get_time(),e))
 
                         # if no prefix consider data a message and print it
                         else:
@@ -997,11 +1004,13 @@ class Peer:
                 os._exit(1)
 
     def refresh_connections(self):
+        """ Gets the current active nodes in the network in a specific frequency"""
         
         while True:
             time.sleep(30)
             print("{}: Refreshing connections...".format(self.get_time()))
             online = self.get_peers_from_ip_server()
+            print("{}: Active nodes: {}".format(self.get_time(),online))
             for on in online:
                 existing = False
                 for peer in self.server_peers:
