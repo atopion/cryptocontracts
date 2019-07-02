@@ -42,6 +42,17 @@ class Transmission:
         return json.dumps(x)
 
     @staticmethod
+    def generate(previous_hash:str, timestamp, pub_keys, hash, signed_hash, transmission_hash):
+        transmission = Transmission()
+        transmission.previous_hash = previous_hash
+        transmission.timestamp = timestamp
+        transmission.pub_keys = pub_keys
+        transmission.hash = hash
+        transmission.signed_hash = signed_hash
+        transmission.transmission_hash = transmission_hash
+        return transmission
+
+    @staticmethod
     def from_json(json_str: str):
         x = json.loads(json_str)
         transmission = Transmission()
@@ -56,10 +67,28 @@ class Transmission:
     @staticmethod
     def list_from_json(json_str: str):
         l = json.loads(json_str)
-        result = []
-        for entry in l:
-            result.append(Transmission.from_json(entry))
+        result = [Transmission.generate(**x) for x in l]
+        print("RESULT: ", result)
+        #for entry in l:
+        #    print("ENTRY: ", entry)
+        #    result.append(Transmission.from_json(entry))
         return result
+
+    @staticmethod
+    def list_to_json(l: list):
+        xl = []
+        for m in l:
+            x = {
+                "previous_hash": m.previous_hash,
+                "timestamp": m.timestamp,
+                "pub_keys": m.pub_keys,
+                "hash": m.hash,
+                "signed_hash": m.signed_hash,
+                "transmission_hash": m.transmission_hash
+            }
+            xl.append(x)
+        return json.dumps(xl)
+
 
     def unsigned_transmission_hash(self):
         return signing.unsign(self.transmission_hash, self.pub_keys)

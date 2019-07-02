@@ -681,25 +681,22 @@ class Peer:
                                 length = int(rec_data[0])
                                 print("LENGTH: {} \n \n".format(length))
                                 all_data = rec_data[1]
-                                print("ALL_DATA: {} \n \n".format(all_data))
+                                print("ALL_DATA: {} \n \n".format(all_data.replace("\\", "")))
                                 while len(all_data) < length:
                                     to_read = length - len(all_data)
-                                    all_data += str(conn.recv(4096 if to_read > 4096 else to_read))
+                                    all_data += str(conn.recv(4096 if to_read > 4096 else to_read), "utf-8")
                                     print("ALL_DATA IN LOOP: {} \n \n".format(all_data))
-
-
-                                all_data = all_data[:-1]
 
                                 if mode == 34:
                                     # Subchain answer
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\\\", "\\"))
+                                        all_data.replace("\\", ""))
                                     self.synchronization_subchain_event.set()
 
                                 else:
                                     # synchronizing node has more transmissions than the synchronizing partners
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\\\", "\\"))
+                                        all_data.replace("\\", ""))
                                     if self.cb_receive_subchain_message is not None:
                                         self.cb_receive_subchain_message(self.synchronization_chain)
 
@@ -924,18 +921,18 @@ class Peer:
                                 
                                 while len(all_data) < length:
                                     to_read = length - len(all_data)
-                                    all_data += str(sock.recv(4096 if to_read > 4096 else to_read))
-                                print("ALL_DATA: {} \n".format(all_data))
+                                    all_data += str(sock.recv(4096 if to_read > 4096 else to_read), "utf-8")
+                                print("ALL_DATA: {} \n".format(all_data.replace("\\", "")))
                                 if mode == 34:
                                     # Subchain answer
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\\\", "\\"))
+                                        all_data.replace("\\", ""))
                                     self.synchronization_subchain_event.set()
 
                                 else:
                                     # synchronizing node has more transmissions than the synchronizing partners
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\\\", "\\"))
+                                        all_data.replace("\\", ""))
                                     self.cb_receive_subchain_message(self.synchronization_chain)
 
                             except Exception as e:
@@ -1094,7 +1091,7 @@ class Peer:
         return self.synchronization_chain
 
     def send_n2_subchain(self, conn, obj):
-        chain = bytes(json.dumps([x.to_json() for x in obj]), "utf-8")
+        chain = bytes(Transmission.list_to_json(obj), "utf-8")
         length = len(chain)
         # send prefix, length of data and chain. ! and & used for separation
         print("Gonna send: ",(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain))
@@ -1103,7 +1100,7 @@ class Peer:
         # conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8") + b'!')
 
     def send_n1_subchain(self, obj):
-        chain = bytes(json.dumps([x.to_json() for x in obj]), "utf-8")
+        chain = bytes(Transmission.list_to_json(obj), "utf-8")
         length = len(chain)
         print("Gonna send: ",(b'\x35' +  bytes(str(length), "utf-8") + b'&' + chain))
         for conn in self.connections:
