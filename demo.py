@@ -19,9 +19,9 @@ print(ip_server.get_all())
 
 
 
-t1 = core.produceTransmission(storage.get_head(), ['key1','key2'], 'document1_hash')
+t1 = core.produce_transmission(storage.get_head(), ['key1', 'key2'], 'document1_hash')
 storage.put_block(t1)
-t2 = core.produceTransmission(storage.get_head(), ['key3','key4'], 'document2_hash')
+t2 = core.produce_transmission(storage.get_head(), ['key3', 'key4'], 'document2_hash')
 storage.put_block(t2)
 
 #print(storage.get_block(storage.get_head()).to_json())

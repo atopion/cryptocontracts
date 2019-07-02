@@ -15,7 +15,7 @@ class Server:
         # Dummy implementation, to be replaced by calls to the actual network script
         self.server = ServerPeer(list_chain=self.list_chain, send_sync_message=self.react_to_sync_request,
                                  send_subchain_message=self.react_to_subchain_request, start_sync=self.synchronize)
-        storage.put_block(core.produceTransmission(storage.get_head(), ["a", "b"], "document-3"))
+        storage.put_block(core.produce_transmission(storage.get_head(), ["a", "b"], "document-3"))
         # connect to network, retrieve latest graph
         # now wait for transmissions from clients, verify them and append them to local chain
         # self.synchronize()
@@ -78,7 +78,7 @@ class Server:
                         failed = True
                         break
 
-                    if not core.verifyTransmission(subchain[j]):
+                    if not core.verify_transmission(subchain[j]):
                         failed = True
                         break
 
@@ -132,7 +132,7 @@ class Server:
         if storage.block_exists(transmission.transmission_hash):
             return
 
-        if not core.verifyTransmission(transmission):
+        if not core.verify_transmission(transmission):
             # send REFUSE package to network
             return
 

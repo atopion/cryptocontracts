@@ -21,40 +21,42 @@ print( hex(Core.checksum(bytes=bytearray(open("./README.md", "r").read(), "utf-8
 print("Compare result: ", Core.compare(Core.checksum(path="./README.md"), Core.checksum(bytes=bytearray(open("./README.md", "r").read(), "utf-8"))))
 '''
 
-def checksum(path = None, s = None, bytes = None):
-    if path is None and bytes is None and s is None:
+
+def checksum(path = None, s = None, byte = None):
+    if path is None and byte is None and s is None:
         return int(random.getrandbits(512))
 
     if path is not None:
         if not os.path.isfile(path):
             return -1
         file = open(path, "r").read()
-        bytes = file.encode("utf-8")
+        byte = file.encode("utf-8")
 
     elif s is not None:
         s = str(s)
-        bytes = s.encode("utf-8")
-    bytes = bytearray(bytes)
+        byte = s.encode("utf-8")
+    byte = bytearray(byte)
 
     # Produce checksum
     hexstr = ""
     start_time = time.time()
-    hexstr += CryptoHashes.whirlpool(bytes)
-    hexstr += CryptoHashes.sha3_512(bytes)
-    hexstr += CryptoHashes.blake(bytes)
+    hexstr += CryptoHashes.whirlpool(byte)
+    hexstr += CryptoHashes.sha3_512(byte)
+    hexstr += CryptoHashes.blake(byte)
     print("Execution: ", time.time() - start_time, " s")
     return int(hexstr, 16)
+
 
 def compare(checksum_a, checksum_b):
     if checksum_a == checksum_b:
         return True
     return False
 
-def lookup(checksum):
-	return None
 
-def produceTransmission(previous_hash: str, pub_keys: list, document_hash: str):
+def lookup(checksum): return None
 
+
+def produce_transmission(previous_hash: str, pub_keys: list, document_hash: str):
     if previous_hash is None or document_hash is None or pub_keys is None or len(pub_keys) == 0:
         return None
 
@@ -67,7 +69,8 @@ def produceTransmission(previous_hash: str, pub_keys: list, document_hash: str):
     transmission.sign_self()
     return transmission
 
-def verifyTransmission(transmission: Transmission):
+
+def verify_transmission(transmission: Transmission):
     if transmission is None or not transmission.is_valid():
         return False
 

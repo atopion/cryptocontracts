@@ -14,8 +14,11 @@ class Client:
     def __init__(self, addr=None):
         # Dummy implementation, to be replaced by calls to the actual network script
         self.client = Peer(addr=addr, list_chain=self.list_chain, send_sync_message=self.react_to_sync_request,
-                           send_subchain_message=self.react_to_subchain_request, start_sync=self.synchronize)
+                           send_subchain_message=self.react_to_subchain_request, start_sync=self.synchronize,
+                           receive_subchain_message=self.react_to_received_subchain,
+                           receive_message=self.react_to_receive_messsage)
 
+    @staticmethod
     def list_chain(self):
         print("CHAIN:")
         storage.print_all()
@@ -33,7 +36,39 @@ class Client:
     def react_to_subchain_request(self, conn, transmission_hash):
         subchain = storage.get_subchain(transmission_hash)
         subchain.reverse()
-        self.client.send_subchain(conn, subchain)
+        self.client.send_n2_subchain(conn, subchain)
+
+    def react_to_receive_messsage(self, transmission):
+        if transmission is None:
+            return
+
+        if not core.compare(transmission.transmission_hash,
+                            storage.get_block(storage.get_head()).unsigned_transmission_hash()):
+            return
+
+        if not core.verify_transmission(transmission):
+            return
+
+        storage.put_block(transmission)
+
+    @staticmethod
+    def react_to_received_subchain(self, subchain):
+        if subchain is None:
+            return
+
+        if not core.compare(subchain[0].transmission_hash,
+                            storage.get_block(storage.get_head()).unsigned_transmission_hash()):
+            return
+
+        for j in range(1, len(subchain)):
+            if not core.compare(subchain[j].previous_hash, subchain[j - 1].unsigned_transmission_hash()):
+                return
+
+            if not core.verify_transmission(subchain[j]):
+                return
+
+        for sub in subchain[1:]:
+            storage.put_block(sub)
 
     def synchronize(self):
         # Synchronizing:
@@ -74,6 +109,12 @@ class Client:
                 already_synced += 1
                 continue
 
+            elif storage.block_exists(maj["hash"]):
+                subchain = storage.get_subchain(maj["hash"])
+                subchain.reverse()
+                self.client.send_n1_subchain(subchain)
+                return SUCCESS
+
             succeeded = False
             for i in range(5):
                 rnd = random.randint(0, len(maj["list"])-1)
@@ -91,7 +132,7 @@ class Client:
                         failed = True
                         break
 
-                    if not core.verifyTransmission(subchain[j]):
+                    if not core.verify_transmission(subchain[j]):
                         failed = True
                         break
 
@@ -120,8 +161,13 @@ class Client:
 
     def place_transmission(self, pub_keys: list, document_hash: str):
         # connect to server and get latest transmission
-        latest_transmission = Transmission()
+        if not self.synchronize() == SUCCESS:
+            print("No new transmission possible")
+            return
 
-        own_transmission = core.produceTransmission(latest_transmission.transmission_hash, pub_keys, document_hash)
+        latest_transmission = storage.get_block(storage.get_head())
 
+        new_transmission = core.produce_transmission(latest_transmission.transmission_hash, pub_keys, document_hash)
+
+        self.client.send_transmission(new_transmission)
         # send own_transmission to all known peers

@@ -15,6 +15,7 @@ import sys
 import time
 
 import core
+from core.transmission import Transmission
 
 
 class Peer:
@@ -90,14 +91,16 @@ class Peer:
 
     synchronization_finished_event = threading.Event()
     synchronization_subchain_event = threading.Event()
-    
-    
-    def __init__(self,addr=None, port=None, list_chain=None, send_sync_message=None, send_subchain_message=None, start_sync=None):
+
+    def __init__(self,addr=None, port=None, list_chain=None, send_sync_message=None, send_subchain_message=None,
+                 start_sync=None, receive_subchain_message=None, receive_message=None):
         
         self.cb_list_chain = list_chain
         self.cb_start_sync = start_sync
         self.cb_send_sync_message = send_sync_message
         self.cb_send_subchain_message = send_subchain_message
+        self.cb_receive_message = receive_message
+        self.cb_receive_subchain_message = receive_subchain_message
 
         self.synchronization_chain = []
         self.synchronization_request_answers = []
@@ -595,6 +598,7 @@ class Peer:
                                 rec_active_peers.append((temp[0],int(temp[1])))
                             if not (set(rec_active_peers) == set(self.active_peers)): # check if peer lists are equal
                                 for rec_peer in rec_active_peers:
+                                    existing = False
                                     for peer in self.active_peers:
                                         existing = False
                                         if (peer[0] == rec_peer[0] and peer[1] == rec_peer[1]):
@@ -619,6 +623,7 @@ class Peer:
 
                             if not (set(rec_connectable_addresses) == set(self.active_connectable_addresses)): # check if peer lists are equal
                                 for rec_peer in rec_connectable_addresses:
+                                    existing = False
                                     for peer in self.active_connectable_addresses:
                                         existing = False
                                         if (peer[0] == rec_peer[0] and peer[1] == rec_peer[1]):
@@ -633,6 +638,9 @@ class Peer:
                                 self.send_active_connectable_addresses()
                                 self.store_addresses()
 
+                        elif mode == 20:
+                            self.cb_receive_message(Transmission.from_json(msg[1:]))
+
                         elif mode == 31:
                                 # Synchronization request
                                 if self.cb_send_sync_message is not None:
@@ -646,9 +654,9 @@ class Peer:
                             data["conn"] = conn
                             self.synchronization_request_answers.append(data)
                             # TODO multiple connections
-                            #if len(self.synchronization_request_answers) == len(self.connected_peers):
-                            #    self.synchronization_finished_event.set()
-                            self.synchronization_finished_event.set()
+                            if len(self.synchronization_request_answers) == len(self.connected_peers):
+                                self.synchronization_finished_event.set()
+                            #self.synchronization_finished_event.set()
 
                         elif mode == 33:
                             # Subchain request
@@ -657,7 +665,7 @@ class Peer:
 #                                self.cb_send_subchain_message(self.sock_client, hash)
                                 self.cb_send_subchain_message(conn, hash)
 
-                        elif mode == 34:
+                        elif mode == 34 or mode == 35:
 
                             try:
                                 rec_data = msg[1:].split("&")
@@ -666,13 +674,24 @@ class Peer:
                                 while len(all_data) < length:
                                     to_read = length - len(all_data)
                                     all_data += str(conn.recv(4096 if to_read > 4096 else to_read))
+
+                                if mode == 34:
+                                    # Subchain answer
+                                    self.synchronization_chain = core.core.Transmission.list_from_json(
+                                        all_data.replace("\\\\", "\\"))
+                                    self.synchronization_subchain_event.set()
+
+                                else:
+                                    # synchronizing node has more transmissions than the synchronizing partners
+                                    self.synchronization_chain = core.core.Transmission.list_from_json(
+                                        all_data.replace("\\\\", "\\"))
+                                    if self.cb_receive_subchain_message is not None:
+                                        self.cb_receive_subchain_message(self.synchronization_chain)
+
                             except Exception as e:
                                 print("Could not send receive subchain \n")
                                 print("Reason: ", e)
 
-                            # Subchain answer
-                            self.synchronization_chain = core.core.Transmission.list_from_json(all_data.replace("\\\\", "\\"))
-                            self.synchronization_subchain_event.set()
                             # if no prefix consider data a message and print it
                         else:
                             print("Message: ", msg)
@@ -852,12 +871,14 @@ class Peer:
                                     self.send_offline_connectable_address(addr)
                                     break   # considering that no redundant addresses in list
 
+                        elif mode == 20:
+                            self.cb_receive_message(Transmission.from_json(msg[1:]))
 
                         elif mode == 31:
-                                # Synchronization request
-                                if self.cb_send_sync_message is not None:
+                            # Synchronization request
+                            if self.cb_send_sync_message is not None:
 #                                    self.cb_send_sync_message(self.sock_client)
-                                    self.cb_send_sync_message(sock)
+                                self.cb_send_sync_message(sock)
 
                         elif mode == 32:
                             # Synchronization answer
@@ -866,9 +887,9 @@ class Peer:
                             data["conn"] = sock
                             self.synchronization_request_answers.append(msg)
                             # TODO multiple connections
-                            #if len(self.synchronization_request_answers) == len(self.connected_peers):
-                            #    self.synchronization_finished_event.set()
-                            self.synchronization_finished_event.set()
+                            if len(self.synchronization_request_answers) == len(self.connected_peers):
+                                self.synchronization_finished_event.set()
+                            #self.synchronization_finished_event.set()
 
                         elif mode == 33:
                             # Subchain request
@@ -877,7 +898,7 @@ class Peer:
 #                                self.cb_send_subchain_message(self.sock_client, hash)
                                 self.cb_send_subchain_message(sock, hash)
 
-                        elif mode == 34:
+                        elif mode == 34 or mode == 35:
                             
                             try:
                                 rec_data = msg[1:].split("&")
@@ -886,13 +907,23 @@ class Peer:
                                 while len(all_data) < length:
                                     to_read = length - len(all_data)
                                     all_data += str(sock.recv(4096 if to_read > 4096 else to_read))
+
+                                if mode == 34:
+                                    # Subchain answer
+                                    self.synchronization_chain = core.core.Transmission.list_from_json(
+                                        all_data.replace("\\\\", "\\"))
+                                    self.synchronization_subchain_event.set()
+
+                                else:
+                                    # synchronizing node has more transmissions than the synchronizing partners
+                                    self.synchronization_chain = core.core.Transmission.list_from_json(
+                                        all_data.replace("\\\\", "\\"))
+                                    self.cb_receive_subchain_message(self.synchronization_chain)
+
                             except Exception as e:
                                 print("Could not send receive subchain \n")
-                                print("Reason: ",e)
-                            
-                            # Subchain answer
-                            self.synchronization_chain = core.core.Transmission.list_from_json(all_data.replace("\\\\", "\\"))
-                            self.synchronization_subchain_event.set()
+                                print("Reason: ", e)
+
                         # if no prefix consider data a message and print it
                         else:
                             print("Message: ", msg)
@@ -1004,10 +1035,10 @@ class Peer:
         p = host[0] + ":" + str(host[1])
 
         if socket:
-            socket.send(b'\x12' + bytes(p, "utf-8")+ b'!')   # ! signals end of message
+            socket.send(b'\x12' + bytes(p, "utf-8") + b'!')   # ! signals end of message
         else:
-            address.send(b'\x12' + bytes(p, "utf-8")+ b'!')
-        print("Own address sent to {}:{}".format(address[0],str(address[1])))
+            address.send(b'\x12' + bytes(p, "utf-8") + b'!')
+        print("Own address sent to {}:{}".format(address[0], str(address[1])))
 
     def store_addresses(self):
         """ Stores the currently active peers in the network to file
@@ -1022,11 +1053,9 @@ class Peer:
         last_addresses.close()
             
     def send_synchronize_request(self):
-        print("SEND REQUEST")
-        # TODO multiple connections
         for conn in self.connections:
             conn.send(b'\x31!')
-#       # self.sock_client.send(b'\x31')
+        # self.sock_client.send(b'\x31')
         # sock.send(b'\x31')
 
         self.synchronization_finished_event.wait(30)
@@ -1046,12 +1075,22 @@ class Peer:
         self.synchronization_subchain_event = threading.Event()
         return self.synchronization_chain
 
-    def send_subchain(self, conn, obj):
+    def send_n2_subchain(self, conn, obj):
         chain = bytes(json.dumps([x.to_json() for x in obj]), "utf-8")
         length = len(chain)
         # send prefix, length of data and chain. ! and & used for separation
         conn.send(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain + b'!')
-#        conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8") + b'!')
+        # conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8") + b'!')
+
+    def send_n1_subchain(self, obj):
+        chain = bytes(json.dumps([x.to_json() for x in obj]), "utf-8")
+        length = len(chain)
+        for conn in self.connections:
+            conn.send(b'\x35' + bytes(str(length), "utf-8") + b'&' + chain + b'!')
+
+    def send_transmission(self, transmission: Transmission):
+        for conn in self.connections:
+            conn.send(b'\x20' + bytes(json.dumps(transmission.to_json()), "utf-8"))
 
 
 if __name__ == '__main__':
