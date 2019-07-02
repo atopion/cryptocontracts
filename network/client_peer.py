@@ -13,6 +13,7 @@ import random
 import json
 import sys
 import time
+import datetime
 
 import core
 from core.transmission import Transmission
@@ -295,6 +296,7 @@ class Peer:
                     p = self.get_connected_peers()
                     print(p)
                 elif i == "sync":
+                    print(self.cb_start_sync)
                     if self.cb_start_sync is not None:
                         self.cb_start_sync()
                 elif i == "list":
@@ -526,6 +528,10 @@ class Peer:
 
         return p
 
+    def get_time(self):
+        
+        return datetime.datetime.now().time()
+
     def incoming_connection_handler(self, conn, address):
         """ Manages connections to other peers
 
@@ -575,17 +581,18 @@ class Peer:
                     self.send_offline_peer(address) # notify connected peers that one peer went offline
                     break
 
-                print("From {}:{} received {} over incoming connection handler \n".format(address[0],str(address[1]),data))
+                print("{}: From {}:{} received {} over incoming connection handler \n".format(self.get_time(),address[0],str(address[1]),data))
 #                 mode = int(bytes(data).hex()[0:2])
 
 
                 inputs = str(data, "utf-8").split("!")
-
+                print("{}: INPUTS: {} \n \n".format(self.get_time(),inputs))
                 for msg in inputs:
+                    print("{}: MSG at BEG: {} \n \n".format(self.get_time(),msg))
                     if msg != "":
                         mode = int(bytes(msg, "utf-8").hex()[0:2])
 #                        print("part message: ", msg)
-#                        print("mode: ", mode)
+                        print("{}: MODE: {} \n \n".format(self.get_time(),mode))
                         # look for specific prefix indicating the list of active peers
                         if mode == 11:
 
@@ -667,13 +674,21 @@ class Peer:
 
                         elif mode == 34 or mode == 35:
 
+                            print("{}: MSG: {} \n \n".format(self.get_time(),msg))
                             try:
                                 rec_data = msg[1:].split("&")
+                                print("{}: REC_DATA: {} \n \n".format(self.get_time(),rec_data))
                                 length = int(rec_data[0])
+                                print("LENGTH: {} \n \n".format(length))
                                 all_data = rec_data[1]
+                                print("ALL_DATA: {} \n \n".format(all_data))
                                 while len(all_data) < length:
                                     to_read = length - len(all_data)
                                     all_data += str(conn.recv(4096 if to_read > 4096 else to_read))
+                                    print("ALL_DATA IN LOOP: {} \n \n".format(all_data))
+
+
+                                all_data = all_data[:-1]
 
                                 if mode == 34:
                                     # Subchain answer
@@ -689,12 +704,12 @@ class Peer:
                                         self.cb_receive_subchain_message(self.synchronization_chain)
 
                             except Exception as e:
-                                print("Could not send receive subchain \n")
+                                print("{}: Could not receive subchain \n".format(self.get_time()))
                                 print("Reason: ", e)
 
                             # if no prefix consider data a message and print it
                         else:
-                            print("Message: ", msg)
+                            print("{}: Message: {}".format(self.get_time(),msg))
 
                             """elif mode == 34:
                                 # Subchain answer
@@ -795,7 +810,7 @@ class Peer:
                     if msg != "":
                         mode = int(bytes(msg, "utf-8").hex()[0:2])
 #                        print("part message: ", msg)
-#                        print("mode: ", mode)
+                        print("MODE: ", mode)
                         # look for specific prefix indicating the list of active peers
                         if mode == 11:
 
@@ -899,15 +914,18 @@ class Peer:
                                 self.cb_send_subchain_message(sock, hash)
 
                         elif mode == 34 or mode == 35:
-                            
+                            print("MSG: {} \n".format(msg))
                             try:
                                 rec_data = msg[1:].split("&")
+                                print("REC_DATA: {} \n".format(rec_data))
                                 length = int(rec_data[0])
+                                print("LENGTH: {} \n".format(length))
                                 all_data = rec_data[1]
+                                
                                 while len(all_data) < length:
                                     to_read = length - len(all_data)
                                     all_data += str(sock.recv(4096 if to_read > 4096 else to_read))
-
+                                print("ALL_DATA: {} \n".format(all_data))
                                 if mode == 34:
                                     # Subchain answer
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
@@ -921,7 +939,7 @@ class Peer:
                                     self.cb_receive_subchain_message(self.synchronization_chain)
 
                             except Exception as e:
-                                print("Could not send receive subchain \n")
+                                print("Could not receive subchain \n")
                                 print("Reason: ", e)
 
                         # if no prefix consider data a message and print it
@@ -1079,14 +1097,17 @@ class Peer:
         chain = bytes(json.dumps([x.to_json() for x in obj]), "utf-8")
         length = len(chain)
         # send prefix, length of data and chain. ! and & used for separation
-        conn.send(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain + b'!')
+        print("Gonna send: ",(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain))
+        conn.send(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain)
+        
         # conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8") + b'!')
 
     def send_n1_subchain(self, obj):
         chain = bytes(json.dumps([x.to_json() for x in obj]), "utf-8")
         length = len(chain)
+        print("Gonna send: ",(b'\x35' +  bytes(str(length), "utf-8") + b'&' + chain))
         for conn in self.connections:
-            conn.send(b'\x35' + bytes(str(length), "utf-8") + b'&' + chain + b'!')
+            conn.send(b'\x35' +  bytes(str(length), "utf-8") + b'&' + chain)
 
     def send_transmission(self, transmission: Transmission):
         for conn in self.connections:
