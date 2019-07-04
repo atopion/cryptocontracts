@@ -44,8 +44,6 @@ class Peer:
         
     Methods
     -------
-    choose_connection()
-        Defines where to establish a connection to depending on if a specific address is given or not
     command_handler()
         Takes care of the user input
     incoming_connection_handler(conn, addr)
@@ -107,102 +105,13 @@ class Peer:
         self.synchronization_request_answers = []
 
         self.fixed_server = False
-
-#        if addr is None:
-#            if os.path.isdir("./addresses") and os.path.isfile("./addresses/last_active_addresses.txt"):
-#                last_addresses = open("./addresses/last_active_addresses.txt")
-#                try:
-#                    str_rep = last_addresses.read().split(",")
-#                    for loc in str_rep:
-#                        temp = loc.split(":")   # bring into tupel format
-#    #                    print(temp)
-#                        self.last_addresses.append((temp[0],int(temp[1])))
-#                    last_addresses.close()
-#                except:
-#                    print("Can not read addresses, host will start and wait for incoming connections")
-#                    self.standalone = True
-#
-#            else:
-##                sys.exit("No addresses stored. Please give a specific peer address when creating object.")
-#                print("No addresses stored, host will start and wait for incoming connections")
-#                self.standalone = True
-#        else:
-#            if port:
-#                self.server_address = (addr, int(port))
-#
-#            else:
-#                self.server_address = addr
-#
-#            self.fixed_server = True    # Flag to decide how to connect to net
-    
-
-    
-    def choose_connection(self):
-        """ Defines where to establish a connection to depending on if a specific address is given or not
-        
-        If no server address is specified when creating the peer object, an address from the last known addresses of the network is
-        chosen randomly. If none is active the program is quit.
-        """
-        
-        pass
-        
-#        connected = False
-#        if self.fixed_server == False:
-#            
-#
-##            not necessary anymore cause own address removed before shutdown
-##            try:
-##                self.last_addresses.remove(self.get_host_addr())
-##            except:
-##                pass
-#            host_addr = self.get_host_addr()
-#            while connected == False:
-#                
-#                if len(self.active_connectable_addresses) > 1 : # evoid endless looping when only own address is in list
-#                    chosen_addr = random.choice(self.active_connectable_addresses)
-#                    
-#
-#                elif not self.last_addresses:
-#                    print("No peer is online, host will start and wait for incoming connections")
-#                    break
-#
-#                else:
-#                    chosen_addr = random.choice(self.last_addresses)
-#
-#                if not (chosen_addr[0] == host_addr[0] and chosen_addr[1] == host_addr[1]):     # do not connect to own address
-#                    print("Trying to connect to {}:{}".format(chosen_addr[0],str(chosen_addr[1])))
-#                    connected = self.create_new_connection(chosen_addr)
-#                    if connected:
-#                        self.active_connectable_addresses.append(self.get_host_addr())
-#                        self.store_addresses()
-#
-#
-##                        try:
-##                            self.send_port(chosen_addr, self.sock_client)
-##                        except:
-##                            print("Could not send own address!")
-#
-#                    else:
-#                        try:
-#                            self.last_addresses.remove(chosen_addr)
-#                        except Exception as e:
-#                            print("Can not remove chosen address from last_addresses. Exception: ", e)
-#
-#
-#        # server address specified on execution
-#        else:
-#            try:    # address can either contain a port number or not
-##                self.sock_client.connect(self.server_address)
-#                self.create_new_connection(self.server_address)
-#                connected = True
-##                print("connected to server {}:{}".format(self.server_address[0],str(self.server_address[1])))
-##                self.active_connectable_addresses.append(self.get_host_addr())
-#            except:
-#                print("Could not connect to specified address. Host will start and wait for connections")
-##
-#        return connected
     
     def connect_to_all(self):
+        """ Connect to all peers in the network
+        
+        Function is called after host gets addresses from the IP server after starting.
+        """
+        
         print("{}: Starting to connect to all peers in the net \n".format(self.get_time()))
         for peer in self.active_connectable_addresses:
             print("{}: Connecting to {}:{} \n".format(self.get_time(),peer[0],peer[1]))
@@ -240,16 +149,9 @@ class Peer:
                 j +=1
             i +=1
 
-#        clean_list = []
-#        for peer in self.active_peers:
-#            if peer not in clean_list:
-#                clean_list.append(peer)
-#        self.active_peers = clean_list
-
     def clean_connections(self):
         """ Removes duplicates from list containing connections to this host
         """
-
 
         i = 0
         for addr in self.connections:
@@ -334,9 +236,6 @@ class Peer:
         If no prefix is found, it is considered a message and printed out.
         """
         
-#        self.sock_client= socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#        self.sock_client.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        
         command_thread = threading.Thread(target=self.command_handler)
         command_thread.daemon = True
         command_thread.start()
@@ -366,7 +265,6 @@ class Peer:
         refreshing_thread = threading.Thread(target=self.refresh_connections)
         refreshing_thread.daemon = True
         refreshing_thread.start()
-        
         
         self.lock.acquire()
         self.lock.acquire()  # call two times to lock main thread
@@ -399,8 +297,6 @@ class Peer:
             if peer[0] == host_addr[0] and peer[1] == host_addr[1]:
                 own = True
                 
-        
-
         connected = False
         if not (existing or own):
             try:
@@ -408,7 +304,7 @@ class Peer:
                 connecting_thread = threading.Thread(target=self.establish_connection,args=(addr,))
                 connecting_thread.daemon = True
                 connecting_thread.start()
-                connecting_thread.join(timeout=20)
+                connecting_thread.join(timeout=20)  # if not able to connect after certain amout of time, terminate thread
 #                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #                sock.connect(addr)
 #                self.server_peers.append(addr)
@@ -431,6 +327,16 @@ class Peer:
         return connected
 
     def establish_connection(self,addr):
+        """ Esablishes a connection to the peer represented in addr.
+        
+        Creates a socket and connects it to addr. Connection is handled in dedicated thread.
+        
+        Parameters
+        ----------
+        addr : (str,int)
+            tuple containing IP address and port number
+        """
+        
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(addr)
         self.server_peers.append(addr)
@@ -443,24 +349,14 @@ class Peer:
     def disconnect_from_net(self):
         """Disconnects from the network/server peer
         
-        The socket is shutdown and closed which causes a disconnection
+        The socket is shutdown and closed which causes a disconnection.
         """
-
-        try:
-            self.last_addresses.remove(self.get_host_addr())
-        except:
-            pass
-
-#        self.store_addresses()  # when restarted this host does not try to connect to itself
 
         self.lock.release()     #unlock main thread
         
         for sock in self.client_sockets:
             sock.shutdown(socket.SHUT_RDWR)
             sock.close()
-
-#        self.sock_client.shutdown(socket.SHUT_RDWR)
-#        self.sock_client.close()
         
         self.sock_server.shutdown(socket.SHUT_RDWR)
         self.sock_server.close()
@@ -482,7 +378,6 @@ class Peer:
             p = self.active_connectable_addresses[0][0] + ":" + str(self.active_connectable_addresses[0][1])
 
             for peer in self.active_connectable_addresses[1:]:
-    #            p = p + peer + ","
                 p = p +  "," + peer[0] + ":" + str(peer[1])
 
         return p
@@ -505,11 +400,7 @@ class Peer:
             p = self.active_peers[0][0] + ":" + str(self.active_peers[0][1])
 
             for peer in self.active_peers[1:]:
-    #            p = p + peer + ","
                 p = p +  "," + peer[0] + ":" + str(peer[1])
-
-#        else:
-#            p = "List is empty"
 
         return p
     
@@ -531,11 +422,7 @@ class Peer:
             p = self.connected_peers[0][0] + ":" + str(self.connected_peers[0][1])
 
             for peer in self.connected_peers[1:]:
-    #            p = p + peer + ","
                 p = p + "," + peer[0] + ":" + str(peer[1])
-
-#        else:
-#            p = "No connections established to this host"
             
         return p
     
@@ -783,24 +670,6 @@ class Peer:
                 print("{}: Connection closed.".format(self.get_time()))
                 os._exit(1)
 
-#        while True:
-#            data = conn.recv(1024)
-#            print("RECEIVED: ", data)
-#            for connection in self.connections:
-#                connection.send(bytes(data))
-#            if not data:
-#                print(str(address[0]) + ":" + str(address[1]),"disconnected")
-#                self.connections.remove(conn)
-#                self.clean_connections()
-#                self.connected_peers.remove(address)
-#                self.clen_connected_peers()
-#                self.active_peers.remove(address)
-#                self.clean_active_peers()
-#                conn.close()
-#                self.send_active_peers()
-#                break
-    
-    
     def listen_for_connections(self):
         """ Makes sure that peers can connect to this host.
         
@@ -831,8 +700,6 @@ class Peer:
 
         If the connection to the server node corrupts, it is looked for another node to connect to
         """
-
-#        self.send_port(address, sock)
 
         while True:
             try:
@@ -1019,8 +886,6 @@ class Peer:
                 if not existing:
                     self.create_new_connection(on)
                         
-            
-    
     def send_active_connectable_addresses(self, addr=None):
         """ Sends the list of active connectable addresses to all peers connected to this host.
 
@@ -1114,15 +979,12 @@ class Peer:
             os.mkdir("./addresses")
             
         last_addresses = open("./addresses/last_active_addresses.txt","w")
-#        last_addresses.write(self.get_active_peers())
         last_addresses.write(self.get_active_connectable_addresses())
         last_addresses.close()
             
     def send_synchronize_request(self):
         for conn in self.connections:
             conn.send(b'\x31!')
-        # self.sock_client.send(b'\x31')
-        # sock.send(b'\x31')
 
         self.synchronization_finished_event.wait(30)
         res = self.synchronization_request_answers
