@@ -263,7 +263,7 @@ class Peer:
         
         
         if self.scope == "internal":    # For nodes in the same network
-            ip_server.add_self_internal(host_addr)
+            ip_server.add_self_internal(*host_addr)
         else:
             ip_server.add_self(self.port)
         print("{}: Host address added to IP Server \n".format(self.get_time()))

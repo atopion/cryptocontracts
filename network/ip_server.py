@@ -13,6 +13,11 @@ def add_self(port):
 	if r.status_code != 200:
 		_raise_exception(r)
 
+def add_self_internal(ip, port):
+	r = requests.post(reg_addr + '_internal', auth=reg_auth, json={'ip': ip, 'port': port})
+	if r.status_code != 200:
+		_raise_exception(r)
+
 def get_all():
 	r = requests.get(reg_addr, auth=reg_auth)
 	if r.status_code != 200:
