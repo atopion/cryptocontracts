@@ -889,7 +889,6 @@ class Peer:
                         elif mode == 31:
                             # Synchronization request
                             if self.cb_send_sync_message is not None:
-#                                    self.cb_send_sync_message(self.sock_client)
                                 self.cb_send_sync_message(sock)
 
                         elif mode == 32:
