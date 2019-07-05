@@ -28,8 +28,6 @@ class Peer:
         a list containing all peers that are currently connected to the network
     connected_peers : list
         a list containing the peers connected to this host
-    fixed_server : boolean
-        a boolean that tells if a fixed address for a server to connect to is given
     last_addresses : list
         a list that contains the latest known active peers in the net
     lock : lock object
@@ -77,7 +75,6 @@ class Peer:
     full_addresses = []     # Both addresses of active peers, for sending and receiving
     connected_peers = []    # Addresses of peers connected to this host
     connections = []    # holds connection objects
-    fixed_server = False
     last_addresses = []
     lock = threading.Lock()     # To lock main thread after establishing connection
     port = None
@@ -87,12 +84,13 @@ class Peer:
     sock_client = None
     standalone = False  # If true start host without connecting
     client_sockets = []
+    
 
     synchronization_finished_event = threading.Event()
     synchronization_subchain_event = threading.Event()
 
     def __init__(self,addr=None, port=None, list_chain=None, send_sync_message=None, send_subchain_message=None,
-                 start_sync=None, receive_subchain_message=None, receive_message=None):
+                 start_sync=None, receive_subchain_message=None, receive_message=None, scope=None):
         
         self.cb_list_chain = list_chain
         self.cb_start_sync = start_sync
@@ -103,9 +101,16 @@ class Peer:
 
         self.synchronization_chain = []
         self.synchronization_request_answers = []
+        
+        # Tell where peers are located, in WAN or in LAN
+        if scope == "external" or scope == "internal":
+            self.scope = scope
+        elif scope == None:
+            self.scope = "external"
+        else:
+            print("{} is not a valid statement for scope. Either assign external or internal for the scope corresponding to the network".format(scope))
+            sys.exit(0)
 
-        self.fixed_server = False
-    
     def connect_to_all(self):
         """ Connect to all peers in the network
         
@@ -256,7 +261,11 @@ class Peer:
         print("{}: Pulling active nodes from IP server \n".format(self.get_time()))
         print("{}: Active nodes in the network: {} \n".format(self.get_time(),self.active_connectable_addresses))
         
-        ip_server.add_self(self.port)
+        
+        if self.scope == "internal":    # For nodes in the same network
+            ip_server.add_self_internal(host_addr)
+        else:
+            ip_server.add_self(self.port)
         print("{}: Host address added to IP Server \n".format(self.get_time()))
         
         print("{}: Trying to connect to all active nodes in the network".format(self.get_time()))
@@ -505,12 +514,9 @@ class Peer:
 
         # TODO think about if this method should wait for receiving data
 
-#        self.send_active_connectable_addresses(conn)
-
         while True:
             try:
 
-                # TODO check if single thread for each outgoing connection needed
                 data = conn.recv(1024)
 
                 if not data:
