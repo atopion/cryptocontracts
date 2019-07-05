@@ -89,6 +89,7 @@ class Peer:
     sock_client = None
     standalone = False  # If true start host without connecting
     client_sockets = []
+    address_connection_pairs = {} # addresses of peers to connect to and the connection object from this host to the same peer
 
     synchronization_finished_event = threading.Event()
     synchronization_subchain_event = threading.Event()
@@ -203,17 +204,19 @@ class Peer:
         """ Removes duplicates from list containing active connectable addresses in the net
         """
         # TODO make sure that it is not possible that an address is appended while cleaning
-
+        
         if len(self.active_connectable_addresses) > 1:
             i = 0
             for addr in self.active_connectable_addresses:
-                j = 0
+                j = i+1
                 for other in self.active_connectable_addresses[i+1:]:
-                    if addr[0] == other[0] and addr[1] == other[1]:
+                    if addr[0] == other[0] and int(addr[1]) == int(other[1]):
                         self.active_connectable_addresses.pop(j)
                         j -= 1  # list gets smaller due to pop
                     j +=1
                 i +=1
+#                
+#        print("AFTER CLEANING:",self.get_active_connectable_addresses())
 
     def clean_active_peers(self):
         """ Removes duplicates from list containing active peers in the net
@@ -225,7 +228,7 @@ class Peer:
         for addr in self.active_peers:
             j = 0
             for other in self.active_peers[i+1:]:
-                if addr[0] == other[0] and addr[1] == other[1]:
+                if addr[0] == other[0] and int(addr[1]) == int(other[1]):
                     self.active_peers.pop(j)
                     j -= 1
                 j +=1
@@ -240,7 +243,6 @@ class Peer:
     def clean_connections(self):
         """ Removes duplicates from list containing connections to this host
         """
-
 
         i = 0
         for addr in self.connections:
@@ -257,13 +259,13 @@ class Peer:
         """ Removes duplicates from list containing connected peers to this host
         """
 
-
         i = 0
         for addr in self.connected_peers:
             j = 0
             for other in self.connected_peers[i+1:]:
-                if addr[0] == other[0] and addr[1] == other[1]:
+                if addr[0] == other[0] and int(addr[1]) == int(other[1]):
                     self.connected_peers.pop(j)
+                    j -= 1
                 j +=1
             i +=1
     
@@ -295,6 +297,8 @@ class Peer:
                 elif i == "clients":
                     p = self.get_connected_peers()
                     print(p)
+                elif i == "pairs":
+                    print(self.address_connection_pairs)
                 elif i == "sync":
                     print(self.cb_start_sync)
                     if self.cb_start_sync is not None:
@@ -586,9 +590,9 @@ class Peer:
 
 
                 inputs = str(data, "utf-8").split("!")
-                print("{}: INPUTS: {} \n \n".format(self.get_time(),inputs))
+#                print("{}: INPUTS: {} \n \n".format(self.get_time(),inputs))
                 for msg in inputs:
-                    print("{}: MSG at BEG: {} \n \n".format(self.get_time(),msg))
+#                    print("{}: MSG at BEG: {} \n \n".format(self.get_time(),msg))
                     if msg != "":
                         mode = int(bytes(msg, "utf-8").hex()[0:2])
 #                        print("part message: ", msg)
@@ -619,7 +623,7 @@ class Peer:
 
                         elif mode == 12:
 
-                            self.clean_active_connectable_addresses()   # just for testing
+#                            self.clean_active_connectable_addresses()   # just for testing
 
                             rec_connectable_addresses = []
                             rec_data = msg[1:].split(",")
@@ -644,6 +648,18 @@ class Peer:
                                 self.clean_active_connectable_addresses()
                                 self.send_active_connectable_addresses()
                                 self.store_addresses()
+                                
+                                
+                        elif mode == 15:
+                            # for matching address of incoming data and connection object to send data 
+                            rec_data = msg[1:]
+                            rec_peer = rec_data.split(":")
+                            self.create_new_connection((rec_peer[0],int(rec_peer[1])))
+                            self.address_connection_pairs.update({rec_data:conn})
+                            self.active_connectable_addresses.append((rec_peer[0],rec_peer[1]))
+                            print("{}: Address-connection pair added".format(self.get_time()))
+                            
+                            
 
                         elif mode == 20:
                             self.cb_receive_message(Transmission.from_json(msg[1:]))
@@ -674,18 +690,18 @@ class Peer:
 
                         elif mode == 34 or mode == 35:
 
-                            print("{}: MSG: {} \n \n".format(self.get_time(),msg))
+#                            print("{}: MSG: {} \n \n".format(self.get_time(),msg))
                             try:
                                 rec_data = msg[1:].split("&")
-                                print("{}: REC_DATA: {} \n \n".format(self.get_time(),rec_data))
+#                                print("{}: REC_DATA: {} \n \n".format(self.get_time(),rec_data))
                                 length = int(rec_data[0])
-                                print("LENGTH: {} \n \n".format(length))
+#                                print("LENGTH: {} \n \n".format(length))
                                 all_data = rec_data[1]
-                                print("ALL_DATA: {} \n \n".format(all_data.replace("\\", "")))
+#                                print("ALL_DATA: {} \n \n".format(all_data.replace("\\", "")))
                                 while len(all_data) < length:
                                     to_read = length - len(all_data)
                                     all_data += str(conn.recv(4096 if to_read > 4096 else to_read), "utf-8")
-                                    print("ALL_DATA IN LOOP: {} \n \n".format(all_data))
+#                                    print("ALL_DATA IN LOOP: {} \n \n".format(all_data))
 
                                 if mode == 34:
                                     # Subchain answer
@@ -783,9 +799,16 @@ class Peer:
 
                     try:
                         self.active_connectable_addresses.remove(address)
-                    except:
-                        print("Could not remove server peer: {}:{} from active connectable address list".format(address[0],str(address[1])))
+                    except Exception as e:
+                        print("{}: Could not remove server peer: {}:{} from active connectable address list".format(self.get_time(),address[0],str(address[1])))
+                        print("{}: Reason: {}".format(self.get_time(),e))
 
+
+                    try:
+                        self.address_connection_pairs.pop(str(address[0]+":"+str(address[1])))
+                    except Exception as e:
+                        print("Could not remove address from address connection pair dict")
+                        print("Reason: ",e)
 
                     self.send_offline_connectable_address(address)  # notify other peers that one peer went offline
 
@@ -797,7 +820,7 @@ class Peer:
 #                    self.fixed_server = False   # When server peer goes offline, this peer needs to connect to another peer
 #                    self.choose_connection()
 
-                print("From {}:{} received {} \n".format(address[0],str(address[1]),data))
+                print("{}: From {}:{} received {}".format(self.get_time(), address[0],str(address[1]),data))
 #                 mode = int(bytes(data).hex()[0:2])
 
 
@@ -807,11 +830,9 @@ class Peer:
                     if msg != "":
                         mode = int(bytes(msg, "utf-8").hex()[0:2])
 #                        print("part message: ", msg)
-                        print("MODE: ", mode)
+                        print("{}: MODE: {}".format(self.get_time(),mode))
                         # look for specific prefix indicating the list of active peers
                         if mode == 11:
-
-                            self.clean_active_peers() # jsut for testing
 
                             rec_active_peers = []
                             rec_data = msg[1:].split(",")
@@ -821,6 +842,8 @@ class Peer:
                                     rec_active_peers.append((temp[0],int(temp[1])))
                                 except IndexError:
                                     print("INDEXERROR: ", temp)
+                                    
+                            self.clean_active_peers()
                             if not (set(rec_active_peers) == set(self.active_peers)): # check if peer lists are equal
 
                                 for rec_peer in rec_active_peers:
@@ -837,7 +860,6 @@ class Peer:
 
                         elif mode == 12:
 #                            print("Before cleaning: ", self.active_connectable_addresses)
-                            self.clean_active_connectable_addresses()   # just for ttesting
 #                            print("After cleaning: ", self.active_connectable_addresses)
 
                             rec_connectable_addresses = []
@@ -847,6 +869,7 @@ class Peer:
                                 temp = addr.split(":")  # bring into tuple format
                                 rec_connectable_addresses.append((temp[0],int(temp[1])))
 
+                            self.clean_active_connectable_addresses()
                             if not (set(rec_connectable_addresses) == set(self.active_connectable_addresses)): # check if peer lists are equal
 
                                 for rec_peer in rec_connectable_addresses:
@@ -905,23 +928,28 @@ class Peer:
                         elif mode == 33:
                             # Subchain request
                             hash = str(msg[1:])
+#                            print("Hash: ", hash)
                             if self.cb_send_subchain_message is not None:
 #                                self.cb_send_subchain_message(self.sock_client, hash)
-                                self.cb_send_subchain_message(sock, hash)
+                                try:
+                                    self.cb_send_subchain_message(sock, hash)
+                                except Exception as e:
+                                    print("Exception: " , e)
+
 
                         elif mode == 34 or mode == 35:
-                            print("MSG: {} \n".format(msg))
+#                            print("MSG: {} \n".format(msg))
                             try:
                                 rec_data = msg[1:].split("&")
-                                print("REC_DATA: {} \n".format(rec_data))
+#                                print("REC_DATA: {} \n".format(rec_data))
                                 length = int(rec_data[0])
-                                print("LENGTH: {} \n".format(length))
+#                                print("LENGTH: {} \n".format(length))
                                 all_data = rec_data[1]
                                 
                                 while len(all_data) < length:
                                     to_read = length - len(all_data)
                                     all_data += str(sock.recv(4096 if to_read > 4096 else to_read), "utf-8")
-                                print("ALL_DATA: {} \n".format(all_data.replace("\\", "")))
+#                                print("ALL_DATA: {} \n".format(all_data.replace("\\", "")))
                                 if mode == 34:
                                     # Subchain answer
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
@@ -965,7 +993,10 @@ class Peer:
         The list of all active connectable addresses is taken and send over every connection as a byte stream.
         A dedicated information is output to the user.
         """
+        
+        self.clean_active_connectable_addresses()
         p = self.get_active_connectable_addresses()
+#        print("Addresses befor sending:",p)
 
         if p:
             if addr:
@@ -985,9 +1016,10 @@ class Peer:
         The list of all active peers is taken and send over every connection as a byte stream.
         A dedicated information is output to the user.
         """
-
+        
+        self.clean_active_peers()
         p = self.get_active_peers()
-
+        
         if p:
 
             for address in self.connections:
@@ -1049,9 +1081,9 @@ class Peer:
         p = host[0] + ":" + str(host[1])
 
         if socket:
-            socket.send(b'\x12' + bytes(p, "utf-8") + b'!')   # ! signals end of message
+            socket.send(b'\x15' + bytes(p, "utf-8") + b'!')   # ! signals end of message
         else:
-            address.send(b'\x12' + bytes(p, "utf-8") + b'!')
+            address.send(b'\x15' + bytes(p, "utf-8") + b'!')
         print("Own address sent to {}:{}".format(address[0], str(address[1])))
 
     def store_addresses(self):
