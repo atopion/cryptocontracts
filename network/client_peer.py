@@ -1123,7 +1123,7 @@ class Peer:
         chain = bytes(Transmission.list_to_json(obj), "utf-8")
         length = len(chain)
         # send prefix, length of data and chain. ! and & used for separation
-        print("Gonna send: ",(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain))
+#        print("Gonna send: ",(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain))
         conn.send(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain)
         
         # conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8") + b'!')
@@ -1131,7 +1131,7 @@ class Peer:
     def send_n1_subchain(self, obj):
         chain = bytes(Transmission.list_to_json(obj), "utf-8")
         length = len(chain)
-        print("Gonna send: ",(b'\x35' +  bytes(str(length), "utf-8") + b'&' + chain))
+#        print("Gonna send: ",(b'\x35' +  bytes(str(length), "utf-8") + b'&' + chain))
         for conn in self.connections:
             conn.send(b'\x35' +  bytes(str(length), "utf-8") + b'&' + chain)
 
