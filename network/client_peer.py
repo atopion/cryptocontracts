@@ -659,7 +659,6 @@ class Peer:
                             self.active_connectable_addresses.append((rec_peer[0],rec_peer[1]))
                             print("{}: Address-connection pair added".format(self.get_time()))
                             
-                            
 
                         elif mode == 20:
                             self.cb_receive_message(Transmission.from_json(msg[1:]))
@@ -912,14 +911,15 @@ class Peer:
                         elif mode == 31:
                             # Synchronization request
                             if self.cb_send_sync_message is not None:
-                                self.cb_send_sync_message(sock)
+                                self.cb_send_sync_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))])
 
                         elif mode == 32:
                             # Synchronization answer
+                            print("IN MODE 32 in OCH: msg is ",str(msg[1:]))
                             data = json.loads(str(msg[1:]))
 #                            data["conn"] = self.sock_client
-                            data["conn"] = sock
-                            self.synchronization_request_answers.append(msg)
+                            data["conn"] = self.address_connection_pairs[str(address[0]+":"+str(address[1]))]
+                            self.synchronization_request_answers.append(data)
                             # TODO multiple connections
                             if len(self.synchronization_request_answers) == len(self.connected_peers):
                                 self.synchronization_finished_event.set()
@@ -928,11 +928,9 @@ class Peer:
                         elif mode == 33:
                             # Subchain request
                             hash = str(msg[1:])
-#                            print("Hash: ", hash)
                             if self.cb_send_subchain_message is not None:
-#                                self.cb_send_subchain_message(self.sock_client, hash)
                                 try:
-                                    self.cb_send_subchain_message(sock, hash)
+                                    self.cb_send_subchain_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))], hash)
                                 except Exception as e:
                                     print("Exception: " , e)
 
