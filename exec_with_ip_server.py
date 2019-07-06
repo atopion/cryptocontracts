@@ -49,6 +49,8 @@ if __name__ == '__main__':
         if not scope == "internal" or scope == "external":
             print("Wrong argument for scope. Can either be internal or external")
             sys.exit(1)
+    else:
+        scope = None
 
     prev = storage.get_block(storage.get_head())
     t1 = core.core.produce_transmission(prev.transmission_hash, ["a", "b"], "document-1")
@@ -94,7 +96,7 @@ if __name__ == '__main__':
 
         # TODO more
 
-        client = client_with_ip_server.Client()
+        client = client_with_ip_server.Client(scope=scope)
         client.client.connect_to_net()
 
 stylesheet = """
