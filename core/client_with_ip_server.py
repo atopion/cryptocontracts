@@ -19,18 +19,18 @@ FAIL = 0
 class Client:
     # Dummy TODO
 
-    def __init__(self, addr=None):
+    def __init__(self, addr=None, scope=None):
         # Dummy implementation, to be replaced by calls to the actual network script
         self.client = Peer(addr=addr, list_chain=self.list_chain, send_sync_message=self.react_to_sync_request,
                            send_subchain_message=self.react_to_subchain_request, start_sync=self.synchronize,
                            receive_subchain_message=self.react_to_received_subchain,
-                           receive_message=self.react_to_receive_messsage)
+                           receive_message=self.react_to_receive_messsage, scope=scope)
 
     @staticmethod
-    def list_chain(self):
+    def list_chain():
         print("CHAIN:")
         storage.print_all()
-        print("HEAD: ", storage.get_head())
+#        print("HEAD: ", storage.get_head())
 
     def react_to_sync_request(self, conn):
         t = storage.get_block(storage.get_head())
@@ -40,7 +40,8 @@ class Client:
             "transmission_hash_signed": signing.sign(t.unsigned_transmission_hash(), signing.OWN_PRIVATE_KEY)
         }
         self.client.send_sync_request_answer(conn, x)
-
+        print("INCOMING REMOTE SYNC REQUEST")
+        
     def react_to_subchain_request(self, conn, transmission_hash):
         subchain = storage.get_subchain(transmission_hash)
         subchain.reverse()
@@ -51,16 +52,19 @@ class Client:
             return
 
         if not core.compare(transmission.transmission_hash,
-                            storage.get_block(storage.get_head()).unsigned_transmission_hash()):
+            storage.get_block(storage.get_head()).unsigned_transmission_hash()):
+            print("REMOTE SYNC REJECTED")
             return
 
         if not core.verify_transmission(transmission):
+            print("REMOTE SYNC REJECTED")
             return
 
         storage.put_block(transmission)
+        print("REMOTE SYNC ACCEPTED")
 
     @staticmethod
-    def react_to_received_subchain(self, subchain):
+    def react_to_received_subchain(subchain):
         if subchain is None:
             return
 
@@ -91,7 +95,6 @@ class Client:
             #r = requests.get('https://api.zipixx.com/cryptocontracts/', header="Content-Type: application/json", data="{key: " + msg["public_key"] + "}")
             #if not r.status_code == 200:
             #    continue
-
             unsigned_hash = signing.unsign(msg["transmission_hash_signed"], {msg["public_key"]})
             if not core.compare(unsigned_hash, msg["transmission_hash"]):
                 continue
@@ -121,6 +124,7 @@ class Client:
                 subchain = storage.get_subchain(maj["hash"])
                 subchain.reverse()
                 self.client.send_n1_subchain(subchain)
+                print("SYNC SUCCESS")
                 return SUCCESS
 
             succeeded = False
