@@ -31,7 +31,8 @@ if __name__ == '__main__':
         server.Server()"""
 
 if __name__ == '__main__':
-    if not len(sys.argv) == 4:
+    arg_len = len(sys.argv)
+    if not (arg_len == 4 or arg_len == 5):
         print("Wrong number of arguments")
         sys.exit(1)
 
@@ -42,6 +43,12 @@ if __name__ == '__main__':
     except ValueError:
         print("Irregular arguments (no integers)")
         sys.exit(1)
+        
+    if arg_len == 5:
+        scope = sys.argv[4]
+        if not scope == "internal" or scope == "external":
+            print("Wrong argument for scope. Can either be internal or external")
+            sys.exit(1)
 
     prev = storage.get_block(storage.get_head())
     t1 = core.core.produce_transmission(prev.transmission_hash, ["a", "b"], "document-1")
