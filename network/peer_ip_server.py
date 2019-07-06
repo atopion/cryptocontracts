@@ -84,6 +84,7 @@ class Peer:
     sock_client = None
     standalone = False  # If true start host without connecting
     client_sockets = []
+    address_connection_pairs = {}
     
 
     synchronization_finished_event = threading.Event()
@@ -132,7 +133,7 @@ class Peer:
             for addr in self.active_connectable_addresses:
                 j = 0
                 for other in self.active_connectable_addresses[i+1:]:
-                    if addr[0] == other[0] and addr[1] == other[1]:
+                    if addr[0] == other[0] and int(addr[1]) == int(other[1]):
                         self.active_connectable_addresses.pop(j)
                         j -= 1  # list gets smaller due to pop
                     j +=1
@@ -148,7 +149,7 @@ class Peer:
         for addr in self.active_peers:
             j = 0
             for other in self.active_peers[i+1:]:
-                if addr[0] == other[0] and addr[1] == other[1]:
+                if addr[0] == other[0] and int(addr[1]) == int(other[1]):
                     self.active_peers.pop(j)
                     j -= 1
                 j +=1
@@ -173,13 +174,13 @@ class Peer:
         """ Removes duplicates from list containing connected peers to this host
         """
 
-
         i = 0
         for addr in self.connected_peers:
             j = 0
             for other in self.connected_peers[i+1:]:
-                if addr[0] == other[0] and addr[1] == other[1]:
+                if addr[0] == other[0] and int(addr[1]) == int(other[1]):
                     self.connected_peers.pop(j)
+                    j -= 1
                 j +=1
             i +=1
     
@@ -223,6 +224,8 @@ class Peer:
                 elif i == "clean":
                     self.clean_active_peers()
                     self.clean_connected_peers()
+                elif i == "pairs":
+                    print(self.address_connection_pairs)
                 else:
                     for connection in self.connections:
                         connection.send(bytes(str(i),'utf-8'))
@@ -608,6 +611,15 @@ class Peer:
 #                                self.send_active_connectable_addresses()
 #                                self.store_addresses()
 
+                        elif mode == 15:
+                            # for matching address of incoming data and connection object to send data 
+                            rec_data = msg[1:]
+                            rec_peer = rec_data.split(":")
+                            self.create_new_connection((rec_peer[0],int(rec_peer[1])))
+                            self.address_connection_pairs.update({rec_data:conn})
+                            self.active_connectable_addresses.append((rec_peer[0],rec_peer[1]))
+                            print("{}: Address-connection pair added".format(self.get_time()))
+
                         elif mode == 20:
                             self.cb_receive_message(Transmission.from_json(msg[1:]))
 
@@ -722,6 +734,11 @@ class Peer:
                     except:
                         print("Could not remove server peer: {}:{} from active connectable address list".format(address[0],str(address[1])))
 
+                    try:
+                        self.address_connection_pairs.pop(str(address[0]+":"+str(address[1])))
+                    except Exception as e:
+                        print("Could not remove address from address connection pair dict")
+                        print("Reason: ",e)
 
                     self.send_offline_connectable_address(address)  # notify other peers that one peer went offline
 
@@ -814,7 +831,7 @@ class Peer:
                                     self.active_connectable_addresses.remove(addr)
 #                                    self.send_offline_connectable_address(addr)
                                     break   # considering that no redundant addresses in list
-
+                        
                         elif mode == 20:
                             self.cb_receive_message(Transmission.from_json(msg[1:]))
 
@@ -822,14 +839,14 @@ class Peer:
                             # Synchronization request
                             if self.cb_send_sync_message is not None:
 #                                    self.cb_send_sync_message(self.sock_client)
-                                self.cb_send_sync_message(sock)
+                                self.cb_send_sync_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))])
 
                         elif mode == 32:
                             # Synchronization answer
                             data = json.loads(str(msg[1:]))
 #                            data["conn"] = self.sock_client
-                            data["conn"] = sock
-                            self.synchronization_request_answers.append(msg)
+                            data["conn"] = self.address_connection_pairs[str(address[0]+":"+str(address[1]))]
+                            self.synchronization_request_answers.append(data)
                             # TODO multiple connections
                             if len(self.synchronization_request_answers) == len(self.connected_peers):
                                 self.synchronization_finished_event.set()
@@ -840,7 +857,7 @@ class Peer:
                             hash = str(msg[1:])
                             if self.cb_send_subchain_message is not None:
 #                                self.cb_send_subchain_message(self.sock_client, hash)
-                                self.cb_send_subchain_message(sock, hash)
+                                self.cb_send_subchain_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))], hash)
 
                         elif mode == 34 or mode == 35:
                             
@@ -898,6 +915,7 @@ class Peer:
         The list of all active connectable addresses is taken and send over every connection as a byte stream.
         A dedicated information is output to the user.
         """
+        self.clean_active_connectable_addresses()
         p = self.get_active_connectable_addresses()
 
         if p:
@@ -918,7 +936,8 @@ class Peer:
         The list of all active peers is taken and send over every connection as a byte stream.
         A dedicated information is output to the user.
         """
-
+        
+        self.clean_active_peers()
         p = self.get_active_peers()
 
         if p:
@@ -972,9 +991,9 @@ class Peer:
         p = host[0] + ":" + str(host[1])
 
         if socket:
-            socket.send(b'\x12' + bytes(p, "utf-8") + b'!')   # ! signals end of message
+            socket.send(b'\x15' + bytes(p, "utf-8") + b'!')   # ! signals end of message
         else:
-            address.send(b'\x12' + bytes(p, "utf-8") + b'!')
+            address.send(b'\x15' + bytes(p, "utf-8") + b'!')
         print("Own address sent to {}:{}".format(address[0], str(address[1])))
         
     def store_addresses(self):
