@@ -596,7 +596,7 @@ class Peer:
                     if msg != "":
                         mode = int(bytes(msg, "utf-8").hex()[0:2])
 #                        print("part message: ", msg)
-                        print("{}: MODE: {} \n \n".format(self.get_time(),mode))
+                        print("{}: MODE: {} \n".format(self.get_time(),mode))
                         # look for specific prefix indicating the list of active peers
                         if mode == 11:
 
@@ -1099,22 +1099,22 @@ class Peer:
     def send_synchronize_request(self):
         for conn in self.connections:
             conn.send(b'\x31!')
-        # self.sock_client.send(b'\x31')
-        # sock.send(b'\x31')
 
         self.synchronization_finished_event.wait(30)
         res = self.synchronization_request_answers
         self.synchronization_request_answers = []
         self.synchronization_finished_event = threading.Event()
+        print("{}: Synchronization Request sent \n".format(self.get_time()))
         return res
 
     def send_sync_request_answer(self, conn, obj):
         conn.send(b'\x32' + bytes(json.dumps(obj), "utf-8"))
+        print("{}: Synchronization Request Answer sent \n".format(self.get_time()))
 
     def request_subchain(self, msg, hash):
         self.synchronization_chain = None
         msg["conn"].send(b'\x33' + bytes(hash, "utf-8"))
-
+        print("{}: Subchain requested \n".format(self.get_time()))
         self.synchronization_subchain_event.wait(30)
         self.synchronization_subchain_event = threading.Event()
         return self.synchronization_chain
@@ -1123,21 +1123,21 @@ class Peer:
         chain = bytes(Transmission.list_to_json(obj), "utf-8")
         length = len(chain)
         # send prefix, length of data and chain. ! and & used for separation
-#        print("Gonna send: ",(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain))
         conn.send(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain)
-        
+        print("{}: Subchain sent \n".format(self.get_time()))
         # conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8") + b'!')
 
     def send_n1_subchain(self, obj):
         chain = bytes(Transmission.list_to_json(obj), "utf-8")
         length = len(chain)
-#        print("Gonna send: ",(b'\x35' +  bytes(str(length), "utf-8") + b'&' + chain))
         for conn in self.connections:
-            conn.send(b'\x35' +  bytes(str(length), "utf-8") + b'&' + chain)
+            conn.send(b'\x35' + bytes(str(length), "utf-8") + b'&' + chain)
+        print("{}: Subchain sent \n".format(self.get_time()))
 
     def send_transmission(self, transmission: Transmission):
         for conn in self.connections:
             conn.send(b'\x20' + bytes(json.dumps(transmission.to_json()), "utf-8"))
+        print("{}: Transmission sent \n".format(self.get_time()))
 
 
 if __name__ == '__main__':
