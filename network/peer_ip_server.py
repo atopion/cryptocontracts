@@ -54,8 +54,8 @@ class Peer:
         Gets the list of all peers currently connected to the net/server peer
     get_connected_peers()
         Returns the list of all peers currently connected to the this host
-    get_host_addr()
-        Returns the IP address of this host
+    set_host_addr()
+        Sets a variable for the IP address and the port of this host
     listen_for_connections()
         Makes sure that peers can connect to this host
     outgoing_connection_handler()
@@ -85,6 +85,7 @@ class Peer:
     standalone = False  # If true start host without connecting
     client_sockets = []
     address_connection_pairs = {}
+    host_addr = None
     
 
     synchronization_finished_event = threading.Event()
@@ -102,6 +103,8 @@ class Peer:
 
         self.synchronization_chain = []
         self.synchronization_request_answers = []
+        
+        self.port = random.randint(10001,15000) # choose a random port for listening to incoming connections
         
         # Tell where peers are located, in WAN or in LAN
         if scope == "external" or scope == "internal":
@@ -208,7 +211,7 @@ class Peer:
                     if self.cb_list_chain is not None:
                         self.cb_list_chain()
                 elif i == "host":
-                    p = self.get_host_addr()
+                    p = self.host_addr
                     print(p[0]+":"+str(p[1]))
                 elif i == "clean":
                     self.clean_active_peers()
@@ -230,8 +233,7 @@ class Peer:
         Function is called after host gets addresses from the IP server after starting.
         """
         
-        host_addr = self.get_host_addr()[0]
-        host_net = host_addr.split(".")
+        host_net = self.host_addr[0].split(".")
         
         print("{}: Starting to connect to all peers in the net \n".format(self.get_time()))
         for peer in self.active_connectable_addresses:
@@ -263,14 +265,14 @@ class Peer:
         server_thread.daemon = True
         server_thread.start()
         
-        time.sleep(1)    # so server_thread has time to bind socket and assign port
-        host_addr = self.get_host_addr()
+#        time.sleep(1)    # so server_thread has time to bind socket and assign port
+        self.set_host_addr()
 #        self.active_connectable_addresses.append(host_addr)
 #        self.store_addresses()
-        print("{}: Host address: {}".format(self.get_time(),host_addr))
+        print("{}: Host address: {}".format(self.get_time(),self.host_addr))
         
         if self.scope == "internal":    # For nodes in the same network
-            ip_server.add_self_internal(*host_addr)
+            ip_server.add_self_internal(*self.host_addr)
             print("{}: Using internal mode".format(self.get_time()))
         else:
             ip_server.add_self(self.port)
@@ -311,15 +313,13 @@ class Peer:
            a variable stating if connection was succesfully created
         """
 
-        host_addr = self.get_host_addr()
-
         existing = False
         own = False
         for peer in self.server_peers:
             if (peer[0] == addr[0] and int(peer[1]) == int(addr[1])):
                 existing = True
             
-        if addr[0] == host_addr[0] and int(addr[1]) == int(host_addr[1]):
+        if addr[0] == self.host_addr[0] and int(addr[1]) == int(self.host_addr[1]):
                 own = True
                 
         connected = False
@@ -454,23 +454,6 @@ class Peer:
                 p = p + "," + peer[0] + ":" + str(peer[1])
             
         return p
-    
-    def get_host_addr(self):
-        """ Returns the IP address of this host.
-        
-        Returns
-        -------
-        tuple (str,int)
-            a tuple containing the IP address of this host and the port that the server socket is bound to
-        """
-#        if self.scope == "internal":
-#            num1 = random.randint(1,200)
-#            num2 = 
-#            num3 = 
-        host_name = socket.gethostname()
-        host_addr = socket.gethostbyname(host_name)
-        
-        return (host_addr,self.port)
     
     def get_peers_from_ip_server(self):
         """ Gets the addresses of the active nodes in the network from the IP Server.
@@ -716,7 +699,7 @@ class Peer:
         
         self.sock_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock_server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        self.port = random.randint(10001,15000)
+#        self.port = random.randint(10001,15000)
         self.sock_server.bind(('0.0.0.0',self.port))
         self.sock_server.listen(1)
         
@@ -915,8 +898,7 @@ class Peer:
     def refresh_connections(self):
         """ Gets the current active nodes in the network in a specific frequency"""
         
-        host_addr = self.get_host_addr()
-        host_net = host_addr[0].split(".")  # local network address of host
+        host_net = self.host_addr[0].split(".")  # local network address of host
         
         while True:
             time.sleep(20)
@@ -927,7 +909,7 @@ class Peer:
             for on in self.active_connectable_addresses:
                 own = False
                 same_net = True
-                if on[0] == host_addr[0] and int(on[1]) == int(host_addr[1]):
+                if on[0] == self.host_addr[0] and int(on[1]) == int(self.host_addr[1]):
                     own = True  # own address of host
                 else:
                     if self.scope == "internal":
@@ -1023,14 +1005,29 @@ class Peer:
             IP address and port to send to
         """
 
-        host = self.get_host_addr()
-        p = host[0] + ":" + str(host[1])
+        p = self.host_addr[0] + ":" + str(self.host_addr[1])
 
         if socket:
             socket.send(b'\x15' + bytes(p, "utf-8") + b'!')   # ! signals end of message
         else:
             address.send(b'\x15' + bytes(p, "utf-8") + b'!')
         print("{}: Own address sent to {}:{}".format(self.get_time(), address[0], str(address[1])))
+        
+    def set_host_addr(self):
+        """ Sets the IP address and the port of this host """
+    
+        
+        if self.scope == "internal":
+            num1 = random.randint(0,199)
+            num2 = random.randint(0,199)
+            num3 = random.randint(0,199)
+            host_addr = "127." + str(num1) + "." + str(num2) + "." + str(num3)
+            
+        else:
+            host_name = socket.gethostname()
+            host_addr = socket.gethostbyname(host_name)
+        
+        self.host_addr = (host_addr,self.port)
         
     def store_addresses(self):
         """ Stores the currently active peers in the network to file
