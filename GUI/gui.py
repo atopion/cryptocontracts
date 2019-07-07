@@ -145,23 +145,31 @@ class GUI(QMainWindow):
         # checksum calling crashes program (due to error in blake code)
         if file != "":
             self.doc_hash = core.checksum(path=file)
-        print(self.doc_hash)
+            print(self.doc_hash)
 
     def clicked_pubkey(self):
         file = QFileDialog.getOpenFileName(filter='*.txt')[0]
         self.update_progress_bar(self.sign1_label, file)
         # checksum calling crashes program
         if file != "":
-            pubkey = GUI.get_pubkey(file)
-            print(pubkey)
+            try:
+                self.pubkey = GUI.get_pubkey(file)
+            except ValueError as err:
+                print("unexpected public key", err)
+                return
+            print(self.pubkey)
 
     def clicked_privkey(self):
         file = QFileDialog.getOpenFileName(filter='*.ppk')[0]
         self.update_progress_bar(self.sign2_label, file)
         # checksum calling crashes program
         if file != "":
-            privkey = GUI.get_privkey(file)
-            print(privkey)
+            try:
+                self.privkey = GUI.get_privkey(file)
+            except ValueError as err:
+                print("unexpected private key", err)
+                return
+            print(self.privkey)
 
     def clicked_connect(self):
         # establish connection with other client
@@ -171,13 +179,13 @@ class GUI(QMainWindow):
             if not ip == GUI.get_ip():
                 GUI.connect_to_partner(ip)
                 self.update_progress_bar(self.conn_label, ip)
+                print(ip)
             else:
                 print("That's your own IP dude...")
+                return
         else:
             ip = ""
             self.update_progress_bar(self.conn_label, ip)
-
-        print(ip)
 
     def clicked_add_to_layer(self):
         # broadcast transmission to all peers if block verified
@@ -198,6 +206,8 @@ class GUI(QMainWindow):
                 write_flag = False
             if write_flag:
                 privkey += line
+        if not privkey:
+            raise ValueError
         return privkey
 
     @staticmethod
@@ -213,6 +223,8 @@ class GUI(QMainWindow):
                 write_flag = False
             if write_flag:
                 pubkey += line
+        if not pubkey:
+            raise ValueError
         return pubkey
 
     """relocate functions to network module"""
