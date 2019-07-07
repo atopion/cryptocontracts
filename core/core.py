@@ -29,7 +29,15 @@ def checksum(path = None, s = None, byte = None):
     if path is not None:
         if not os.path.isfile(path):
             return -1
-        file = open(path, "r").read()
+        try:
+            file = open(path, "r").read()
+        except UnicodeDecodeError:
+            print("wrong pdf encoding.. trying latin-1..")
+            try:
+                file = open(path, "r", encoding="latin-1").read()
+            except UnicodeDecodeError as err:
+                print("wrong pdf encoding (latin-1).. ", err)
+        print("writing bytes..")
         byte = file.encode("utf-8")
 
     elif s is not None:
@@ -42,7 +50,7 @@ def checksum(path = None, s = None, byte = None):
     start_time = time.time()
     hexstr += CryptoHashes.whirlpool(byte)
     hexstr += CryptoHashes.sha3_512(byte)
-    hexstr += CryptoHashes.blake(byte)
+    #hexstr += CryptoHashes.blake(byte)
     print("Execution: ", time.time() - start_time, " s")
     return int(hexstr, 16)
 
