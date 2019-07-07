@@ -112,28 +112,6 @@ class Peer:
             print("{} is not a valid statement for scope. Either assign external or internal for the scope corresponding to the network".format(scope))
             sys.exit(0)
 
-    def connect_to_all(self):
-        """ Connect to all peers in the network
-        
-        Function is called after host gets addresses from the IP server after starting.
-        """
-        
-        host_addr = self.get_host_addr()[0]
-        host_net = host_addr.split(".")
-        
-        print("{}: Starting to connect to all peers in the net \n".format(self.get_time()))
-        for peer in self.active_connectable_addresses:
-            if self.scope == "internal":
-                peer_net = peer[0].split(".")
-#                print("PEER NET: {}".format(peer_net[0]))
-#                print("HOST NET: {}".format(host_net[0]))
-                if  (peer_net[0] == host_net[0]):   # not in same LAN
-#                    print("{}: Connecting to {}:{} \n".format(self.get_time(),peer[0],peer[1]))
-                    self.create_new_connection(peer)
-            else:
-#                print("{}: Connecting to {}:{} \n".format(self.get_time(),peer[0],peer[1]))
-                self.create_new_connection(peer)                
-
     def clean_active_connectable_addresses(self):
         """ Removes duplicates from list containing active connectable addresses in the net
         """
@@ -245,6 +223,28 @@ class Peer:
                 os._exit(1)
             except KeyboardInterrupt:
                 os._exit(1)
+                
+    def connect_to_all(self):
+        """ Connect to all peers in the network
+        
+        Function is called after host gets addresses from the IP server after starting.
+        """
+        
+        host_addr = self.get_host_addr()[0]
+        host_net = host_addr.split(".")
+        
+        print("{}: Starting to connect to all peers in the net \n".format(self.get_time()))
+        for peer in self.active_connectable_addresses:
+            if self.scope == "internal":
+                peer_net = peer[0].split(".")
+#                print("PEER NET: {}".format(peer_net[0]))
+#                print("HOST NET: {}".format(host_net[0]))
+                if  (peer_net[0] == host_net[0]):   # not in same LAN
+#                    print("{}: Connecting to {}:{} \n".format(self.get_time(),peer[0],peer[1]))
+                    self.create_new_connection(peer)
+            else:
+#                print("{}: Connecting to {}:{} \n".format(self.get_time(),peer[0],peer[1]))
+                self.create_new_connection(peer)                
     
     def connect_to_net(self):
         """ Establishes connection to the server peer
@@ -263,18 +263,11 @@ class Peer:
         server_thread.daemon = True
         server_thread.start()
         
-        print("{}: Host now accepts connections".format(self.get_time()))
-        
         time.sleep(1)    # so server_thread has time to bind socket and assign port
         host_addr = self.get_host_addr()
-        self.active_connectable_addresses.append(host_addr)
+#        self.active_connectable_addresses.append(host_addr)
 #        self.store_addresses()
         print("{}: Host address: {}".format(self.get_time(),host_addr))
-        
-        self.active_connectable_addresses = self.get_peers_from_ip_server()
-        print("{}: Pulling active nodes from IP server \n".format(self.get_time()))
-        print("{}: Active nodes in the network: {} \n".format(self.get_time(),self.active_connectable_addresses))
-        
         
         if self.scope == "internal":    # For nodes in the same network
             ip_server.add_self_internal(*host_addr)
@@ -282,7 +275,13 @@ class Peer:
         else:
             ip_server.add_self(self.port)
         print("{}: Host address added to IP Server \n".format(self.get_time()))
-
+        
+        print("{}: Host now accepts connections".format(self.get_time()))
+        
+        self.active_connectable_addresses = self.get_peers_from_ip_server()
+        print("{}: Pulling active nodes from IP server \n".format(self.get_time()))
+        print("{}: Active nodes in the network: {} \n".format(self.get_time(),self.active_connectable_addresses))
+        
         
         print("{}: Trying to connect to all active nodes in the network".format(self.get_time()))
         self.connect_to_all()
@@ -317,9 +316,10 @@ class Peer:
         existing = False
         own = False
         for peer in self.server_peers:
-            if (peer[0] == addr[0] and peer[1] == addr[1]):
+            if (peer[0] == addr[0] and int(peer[1]) == int(addr[1])):
                 existing = True
-            if peer[0] == host_addr[0] and peer[1] == host_addr[1]:
+            
+        if addr[0] == host_addr[0] and int(addr[1]) == int(host_addr[1]):
                 own = True
                 
         connected = False
@@ -463,7 +463,10 @@ class Peer:
         tuple (str,int)
             a tuple containing the IP address of this host and the port that the server socket is bound to
         """
-        
+        if self.scope == "internal":
+            num1 = random.randint(1,200)
+            num2 =
+            num3 = 
         host_name = socket.gethostname()
         host_addr = socket.gethostbyname(host_name)
         
@@ -537,7 +540,7 @@ class Peer:
         while True:
             try:
 
-                data = conn.recv(1024)
+                data = conn.recv(4096)
 
                 if not data:
                     print("{}: {}:{} disconnected \n".format(self.get_time(),str(address[0]),str(address[1])))
@@ -566,7 +569,6 @@ class Peer:
                     break
 
                 print("{}: From {}:{} received {} over incoming connection handler \n".format(self.get_time(),address[0],str(address[1]),data))
-#                 mode = int(bytes(data).hex()[0:2])
 
 
                 inputs = str(data, "utf-8").split("!")
@@ -742,7 +744,7 @@ class Peer:
         while True:
             try:
                 
-                data = sock.recv(1024)
+                data = sock.recv(4096)
                 if not data:
                     try:
                         self.server_peers.remove(address)
@@ -917,14 +919,15 @@ class Peer:
         host_net = host_addr[0].split(".")  # local network address of host
         
         while True:
-            time.sleep(30)
+            time.sleep(20)
             print("\n{}: Refreshing connections...".format(self.get_time()))
-            online = self.get_peers_from_ip_server()
-            print("{}: Active nodes: {}".format(self.get_time(),online))
-            for on in online:
+            self.active_connectable_addresses = self.get_peers_from_ip_server()
+            
+            print("{}: Active nodes: {}".format(self.get_time(),self.active_connectable_addresses))
+            for on in self.active_connectable_addresses:
                 own = False
                 same_net = True
-                if on[0] == host_addr[0] and on[1] == host_addr[1]:
+                if on[0] == host_addr[0] and int(on[1]) == int(host_addr[1]):
                     own = True  # own address of host
                 else:
                     if self.scope == "internal":
@@ -936,7 +939,7 @@ class Peer:
                 if (not own) and same_net:
                     existing = False
                     for peer in self.server_peers:
-                        if on[0] == peer[0] and on[1] == peer[1]:
+                        if on[0] == peer[0] and int(on[1]) == int(peer[1]):
                             existing = True
                       
                     if not existing:    # only connect to new peers
