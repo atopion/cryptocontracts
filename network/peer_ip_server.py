@@ -463,10 +463,10 @@ class Peer:
         tuple (str,int)
             a tuple containing the IP address of this host and the port that the server socket is bound to
         """
-        if self.scope == "internal":
-            num1 = random.randint(1,200)
-            num2 =
-            num3 = 
+#        if self.scope == "internal":
+#            num1 = random.randint(1,200)
+#            num2 = 
+#            num3 = 
         host_name = socket.gethostname()
         host_addr = socket.gethostbyname(host_name)
         
