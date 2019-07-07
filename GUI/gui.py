@@ -1,9 +1,8 @@
 import sys
 from requests import get
-from PyQt5.QtWidgets import *#(QMainWindow, QAction, qApp, QApplication, QPushButton, QProgressBar, QInputDialog,
-                             #QLineEdit, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy, QWidget, QFileDialog as Dialog)
+import socket
+from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-from PyQt5.QtCore import *
 from core import core
 
 
@@ -18,6 +17,10 @@ class GUI(QMainWindow):
         self.sign1_label = QLineEdit(self)
         self.sign2_label = QLineEdit(self)
         self.conn_label = QLineEdit(self)
+        self.check_file = QCheckBox()
+        self.check_pubkey = QCheckBox()
+        self.check_privkey = QCheckBox()
+        self.check_conn = QCheckBox()
         self.statusBar()
         self.width = width
         self.height = height
@@ -89,14 +92,10 @@ class GUI(QMainWindow):
         vbox2.addWidget(self.conn_label)
 
         vbox_checks = QVBoxLayout()
-        check_file = QCheckBox()
-        check_pubkey = QCheckBox()
-        check_privkey = QCheckBox()
-        check_conn = QCheckBox()
-        vbox_checks.addWidget(check_file)
-        vbox_checks.addWidget(check_pubkey)
-        vbox_checks.addWidget(check_privkey)
-        vbox_checks.addWidget(check_conn)
+        vbox_checks.addWidget(self.check_file)
+        vbox_checks.addWidget(self.check_pubkey)
+        vbox_checks.addWidget(self.check_privkey)
+        vbox_checks.addWidget(self.check_conn)
 
         hbox = QHBoxLayout()
         hbox.addLayout(vbox1)
@@ -115,11 +114,11 @@ class GUI(QMainWindow):
         vbox4.addLayout(vbox3)
         vbox4.addStretch(10)
 
-        spaceItem = QSpacerItem(self.width / 5, self.height / 5, QSizePolicy.Expanding)
+        spacer = QSpacerItem(self.width / 5, self.height / 5, QSizePolicy.Expanding)
         hbox2 = QHBoxLayout()
-        hbox2.addSpacerItem(spaceItem)
+        hbox2.addSpacerItem(spacer)
         hbox2.addLayout(vbox4)
-        hbox2.addSpacerItem(spaceItem)
+        hbox2.addSpacerItem(spacer)
 
         widget.setLayout(hbox2)
         self.setCentralWidget(widget)
@@ -132,24 +131,28 @@ class GUI(QMainWindow):
                 line_edit.setText(self.DEFAULT_STRING)
                 self.progress.setValue(self.progress.value() - self.PROGRESS_MAX / 5)
             print("Canceled")
+            return False
         elif line_edit.text() == self.DEFAULT_STRING:
             if not line_edit.text() == s:
                 self.progress.setValue(self.progress.value() + self.PROGRESS_MAX / 5)
             line_edit.setText(s)
+            return True
         else:
             line_edit.setText(s)
+            return True
 
     def clicked_select_file(self):
         file = QFileDialog.getOpenFileName(filter='*.pdf')[0]
-        self.update_progress_bar(self.file_label, file)
+
         # checksum calling crashes program (due to error in blake code)
         if file != "":
             self.doc_hash = core.checksum(path=file)
             print(self.doc_hash)
+        self.check_file.setChecked(self.update_progress_bar(self.file_label, file))
 
     def clicked_pubkey(self):
         file = QFileDialog.getOpenFileName(filter='*.txt')[0]
-        self.update_progress_bar(self.sign1_label, file)
+
         # checksum calling crashes program
         if file != "":
             try:
@@ -158,10 +161,11 @@ class GUI(QMainWindow):
                 print("unexpected public key", err)
                 return
             print(self.pubkey)
+        self.check_pubkey.setChecked(self.update_progress_bar(self.sign1_label, file))
 
     def clicked_privkey(self):
         file = QFileDialog.getOpenFileName(filter='*.ppk')[0]
-        self.update_progress_bar(self.sign2_label, file)
+
         # checksum calling crashes program
         if file != "":
             try:
@@ -170,6 +174,7 @@ class GUI(QMainWindow):
                 print("unexpected private key", err)
                 return
             print(self.privkey)
+        self.check_privkey.setChecked(self.update_progress_bar(self.sign2_label, file))
 
     def clicked_connect(self):
         # establish connection with other client
@@ -177,15 +182,16 @@ class GUI(QMainWindow):
         if ok and GUI.validate_ip(ip):
             # connect to partner client
             if not ip == GUI.get_ip():
-                GUI.connect_to_partner(ip)
-                self.update_progress_bar(self.conn_label, ip)
+                #GUI.connect_to_partner(ip)
+                #GUI.receive_message(GUI.get_ip())
+                self.check_conn.setChecked(self.update_progress_bar(self.conn_label, ip))
                 print(ip)
             else:
                 print("That's your own IP dude...")
                 return
         else:
             ip = ""
-            self.update_progress_bar(self.conn_label, ip)
+            self.check_conn.setChecked(self.update_progress_bar(self.conn_label, ip))
 
     def clicked_add_to_layer(self):
         # broadcast transmission to all peers if block verified
@@ -248,7 +254,36 @@ class GUI(QMainWindow):
 
     @staticmethod
     def connect_to_partner(ip):
+        PORT = 5005
+        MESSAGE = "Hello!"
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         print("connecting to partner with ip:", ip)
+        try:
+            s.connect((ip, PORT))
+        except:
+            print("something went wrong")
+        print("sending message", MESSAGE)
+        s.send(MESSAGE)
+        s.close()
+
+
+    @staticmethod
+    def receive_message(ip):
+        PORT = 5005
+        BUFFER_SIZE = 1024
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind((ip, PORT))
+        s.listen(1)
+
+        conn, addr = s.accept()
+        print('Connection address:', addr)
+        while 1:
+            data = conn.recv(BUFFER_SIZE)
+            if not data:
+                break
+            print("received data:", data)
+            conn.send(data)  # echo
+        conn.close()
 
 
 stylesheet = """GUI {
