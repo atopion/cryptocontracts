@@ -1,4 +1,5 @@
 from flask import Blueprint, request, Response, jsonify, abort
+from werkzeug.utils import secure_filename
 from functools import wraps
 from base64 import b64encode
 import sqlite3
@@ -32,6 +33,14 @@ def auth_required(f):
 	return wrap
 
 
+@cryptocontracts.route('/upload', methods=['PUT'])
+@auth_required
+def upload():
+	f = request.files['file']
+	f.save(config.get('cryptocontracts.file_upload_dir') + secure_filename(f.filename))
+	return Response('ok\n', status=200, mimetype='text/plain')
+
+
 @cryptocontracts.route('/', methods=['POST'])
 @auth_required
 def post():
@@ -43,7 +52,6 @@ def post():
 		c.close()
 		db.close()
 		return Response('ok\n', status=200, mimetype='text/plain')
-		
 	except sqlite3.Error as e:
 		return Response(str(e)+'\n', status=500, mimetype='text/plain')
 
@@ -131,7 +139,23 @@ def ip_post():
 		c.close()
 		db.close()
 		return Response('ok\n', status=200, mimetype='text/plain')
-		
+	except sqlite3.Error as e:
+		return Response(str(e)+'\n', status=500, mimetype='text/plain')
+
+@cryptocontracts.route('/ip_internal', methods=['POST'])
+@auth_required
+def ip_internal_post():
+	try:
+		if request.json is None or 'port' not in request.json or 'ip' not in request.json:
+			return Response(status=400)
+
+		db = sqlite3.connect(dbFilename)
+		c = db.cursor()
+		c.execute('insert or replace into ips (ip, port, joined) values (?, ?, datetime("now"));', (request.json['ip'], request.json['port']))
+		db.commit()
+		c.close()
+		db.close()
+		return Response('ok\n', status=200, mimetype='text/plain')
 	except sqlite3.Error as e:
 		return Response(str(e)+'\n', status=500, mimetype='text/plain')
 
@@ -149,13 +173,17 @@ def ip_get():
 	except sqlite3.Error as e:
 		return Response(str(e)+'\n', status=500, mimetype='text/plain')
 
+# TODO rm deleteall, replace with x-forwarded-for
 @cryptocontracts.route('/ip', methods=['DELETE'])
 @auth_required
 def ip_delete():
 	try:
 		db = sqlite3.connect(dbFilename)
 		c = db.cursor()
-		c.execute('delete from ips;') # where ip=?;', (request.headers['X-Forwarded-For'],))
+		if request.json is not None and 'ip' in request.json:
+			c.execute('delete from ips where ip=?;', (request.json['ip'],))
+		else:
+			c.execute('delete from ips;') # where ip=?;', (request.headers['X-Forwarded-For'],))
 		db.commit()
 		c.close()
 		db.close()

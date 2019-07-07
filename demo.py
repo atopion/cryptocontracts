@@ -15,6 +15,10 @@ print(registry.get_all())
 ip_server.delete_all()
 port=config.get('server', 'port')
 ip_server.add_self(port)
+
+ip_server.add_self_internal('99.99.99.99', 9999)
+print(ip_server.get_all())
+ip_server.delete('99.99.99.99')
 print(ip_server.get_all())
 
 

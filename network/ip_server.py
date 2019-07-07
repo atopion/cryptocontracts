@@ -24,6 +24,11 @@ def get_all():
 		_raise_exception(r)
 	return json.loads(r.text)
 
+def delete(ip):
+	r = requests.delete(reg_addr, auth=reg_auth, json={'ip': ip})
+	if r.status_code != 200:
+		_raise_exception(r)
+
 def delete_all():
 	r = requests.delete(reg_addr, auth=reg_auth)
 	if r.status_code != 200:
