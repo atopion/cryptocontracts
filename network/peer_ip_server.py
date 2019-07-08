@@ -107,12 +107,12 @@ class Peer:
         self.port = random.randint(10001,15000) # choose a random port for listening to incoming connections
         
         # Tell where peers are located, in WAN or in LAN
-        if scope == "external" or scope == "internal":
+        if scope == "external" or scope == "internal" or scope == "localhost":
             self.scope = scope
         elif scope == None:
             self.scope = "external"
         else:
-            print("{} is not a valid statement for scope. Either assign external or internal for the scope corresponding to the network".format(scope))
+            print("{} is not a valid statement for scope. Either assign external, internal or localhost for the scope corresponding to the network".format(scope))
             sys.exit(0)
 
     def clean_active_connectable_addresses(self):
@@ -237,7 +237,7 @@ class Peer:
         
         print("{}: Starting to connect to all peers in the net \n".format(self.get_time()))
         for peer in self.active_connectable_addresses:
-            if self.scope == "internal":
+            if self.scope == "internal" or self.scope == "localhost":
                 peer_net = peer[0].split(".")
 #                print("PEER NET: {}".format(peer_net[0]))
 #                print("HOST NET: {}".format(host_net[0]))
@@ -274,6 +274,9 @@ class Peer:
         if self.scope == "internal":    # For nodes in the same network
             ip_server.add_self_internal(*self.host_addr)
             print("{}: Using internal mode".format(self.get_time()))
+        elif self.scope == "localhost":
+            ip_server.add_self_internal(*self.host_addr)
+            print("{}: Starting network on localhost")
         else:
             ip_server.add_self(self.port)
         print("{}: Host address added to IP Server \n".format(self.get_time()))
@@ -381,6 +384,8 @@ class Peer:
         
         The socket is shutdown and closed which causes a disconnection.
         """
+
+        ip_server.delete(self.host_addr[0])
 
         self.lock.release()     #unlock main thread
         
@@ -696,12 +701,18 @@ class Peer:
         
         Creates an own thread for each incoming connection.
         """
-        
-        self.sock_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock_server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-#        self.port = random.randint(10001,15000)
-        self.sock_server.bind(('0.0.0.0',self.port))
-        self.sock_server.listen(1)
+        while True:
+            try:
+                self.sock_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.sock_server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+                self.port = random.randint(10001,15000)
+                self.sock_server.bind(('0.0.0.0',self.port))
+                self.sock_server.listen(1)
+                
+                break
+            
+            except OSError:
+                print("{}: Randomly chosen port numer already taken, choosing different number")
         
         while True:
             conn, addr = self.sock_server.accept()
@@ -912,7 +923,7 @@ class Peer:
                 if on[0] == self.host_addr[0] and int(on[1]) == int(self.host_addr[1]):
                     own = True  # own address of host
                 else:
-                    if self.scope == "internal":
+                    if self.scope == "internal" or self.scope == "localhost":
                         peer_net = on[0].split(".")
     #                    print("PEER NET: {}".format(peer_net[0]))
     #                    print("HOST NET: {}".format(host_net[0]))
@@ -1017,7 +1028,7 @@ class Peer:
         """ Sets the IP address and the port of this host """
     
         
-        if self.scope == "internal":
+        if self.scope == "localhost":
             num1 = random.randint(0,199)
             num2 = random.randint(0,199)
             num3 = random.randint(0,199)
