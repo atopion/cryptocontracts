@@ -32,20 +32,20 @@ if __name__ == '__main__':
 
 if __name__ == '__main__':
     arg_len = len(sys.argv)
-    if not (arg_len == 3 or arg_len == 4):
+    if not (arg_len == 4 or arg_len == 5):
         print("Wrong number of arguments")
         sys.exit(1)
 
 #    mode = sys.argv[1]
     try:
-        test = int(sys.argv[1])
-        unit = int(sys.argv[2])
+        test = int(sys.argv[2])
+        unit = int(sys.argv[3])
     except ValueError:
         print("Irregular arguments (no integers)")
         sys.exit(1)
         
-    if arg_len == 4:
-        scope = sys.argv[3]
+    if arg_len == 5:
+        scope = sys.argv[4]
         if not (scope == "internal" or scope == "external" or scope == "localhost"):
             print("Wrong argument for scope. Can either be internal, external or localhost")
             sys.exit(1)
