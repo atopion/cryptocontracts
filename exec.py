@@ -1,6 +1,6 @@
 from storage import config, storage
 from core import core, client, server
-from GUI import gui
+#from GUI import gui
 import sys
 
 """
