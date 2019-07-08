@@ -32,22 +32,22 @@ if __name__ == '__main__':
 
 if __name__ == '__main__':
     arg_len = len(sys.argv)
-    if not (arg_len == 4 or arg_len == 5):
+    if not (arg_len == 3 or arg_len == 4):
         print("Wrong number of arguments")
         sys.exit(1)
 
-    mode = sys.argv[1]
+#    mode = sys.argv[1]
     try:
-        test = int(sys.argv[2])
-        unit = int(sys.argv[3])
+        test = int(sys.argv[1])
+        unit = int(sys.argv[2])
     except ValueError:
         print("Irregular arguments (no integers)")
         sys.exit(1)
         
-    if arg_len == 5:
-        scope = sys.argv[4]
-        if not scope == "internal" or scope == "external":
-            print("Wrong argument for scope. Can either be internal or external")
+    if arg_len == 4:
+        scope = sys.argv[3]
+        if not (scope == "internal" or scope == "external" or scope == "localhost"):
+            print("Wrong argument for scope. Can either be internal, external or localhost")
             sys.exit(1)
     else:
         scope = None
@@ -57,47 +57,44 @@ if __name__ == '__main__':
     t2 = core.core.produce_transmission(t1.transmission_hash, ["c", "d"], "document-2")
     t3 = core.core.produce_transmission(t2.transmission_hash, ["e", "f"], "document-3")
 
-    if mode == "server":
-        server.Server()
+   
+    if  test == 1:
+        if unit == 1:
+            storage.put_block(t1)
+        else:
+            storage.put_block(t1)
+            storage.put_block(t2)
 
-    elif mode == "client":
-        if  test == 1:
-            if unit == 1:
-                storage.put_block(t1)
-            else:
-                storage.put_block(t1)
-                storage.put_block(t2)
+    elif test == 2:
+        if unit < 100:
+            storage.put_block(t1)
+        else:
+            storage.put_block(t1)
+            storage.put_block(t2)
 
-        elif test == 2:
-            if unit < 100:
-                storage.put_block(t1)
-            else:
-                storage.put_block(t1)
-                storage.put_block(t2)
+    elif test == 3:
+        if unit < 66:
+            storage.put_block(t1)
+        elif unit < 132:
+            storage.put_block(t1)
+            storage.put_block(t2)
+        else:
+            storage.put_block(t1)
+            storage.put_block(t2)
+            storage.put_block(t3)
 
-        elif test == 3:
-            if unit < 66:
-                storage.put_block(t1)
-            elif unit < 132:
-                storage.put_block(t1)
-                storage.put_block(t2)
-            else:
-                storage.put_block(t1)
-                storage.put_block(t2)
-                storage.put_block(t3)
-
-        elif test == 4:
-            if unit == 1:
-                storage.put_block(t1)
-            else:
-                storage.put_block(t1)
-                storage.put_block(t2)
-                storage.put_block(t3)
+    elif test == 4:
+        if unit == 1:
+            storage.put_block(t1)
+        else:
+            storage.put_block(t1)
+            storage.put_block(t2)
+            storage.put_block(t3)
 
         # TODO more
 
-        client = client_with_ip_server.Client(scope=scope)
-        client.client.connect_to_net()
+    client = client_with_ip_server.Client(scope=scope)
+    client.client.connect_to_net()
 
 stylesheet = """
     GUI {
