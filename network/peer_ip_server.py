@@ -369,7 +369,7 @@ class Peer:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(addr)
             connected = True
-        except ConnectionRefusedError:
+        except ConnectionRefusedError or TimeoutError:
             connected = False
         if connected:
             self.server_peers.append(addr)
