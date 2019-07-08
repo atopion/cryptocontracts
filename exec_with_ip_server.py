@@ -8,7 +8,7 @@ Created on Tue Jul  2 14:11:42 2019
 
 from storage import config, storage
 from core import core, client_with_ip_server, server
-from GUI import gui
+#from GUI import gui
 import sys
 
 """
