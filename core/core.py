@@ -24,25 +24,18 @@ print("Compare result: ", Core.compare(Core.checksum(path="./README.md"), Core.c
 
 def checksum(path = None, s = None, byte = None):
     if path is None and byte is None and s is None:
-        return int(random.getrandbits(512))
+        raise ValueError('No input given.')
 
     if path is not None:
         if not os.path.isfile(path):
-            return -1
-        try:
-            file = open(path, "r").read()
-        except UnicodeDecodeError:
-            print("wrong pdf encoding.. trying latin-1..")
-            try:
-                file = open(path, "r", encoding="latin-1").read()
-            except UnicodeDecodeError as err:
-                print("wrong pdf encoding (latin-1).. ", err)
-        print("writing bytes..")
-        byte = file.encode("utf-8")
+            raise FileNotFoundError(path)
+        print("core.checksum :: read bytes from file " + path)
+        byte = open(path, "rb").read()
 
     elif s is not None:
         s = str(s)
         byte = s.encode("utf-8")
+
     byte = bytearray(byte)
 
     # Produce checksum

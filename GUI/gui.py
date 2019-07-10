@@ -31,7 +31,7 @@ class GUI(QMainWindow):
         self.setGeometry(0, 0, self.width/2, self.height/2)
         self.setMinimumSize(self.width/3, self.height/3)
         self.setWindowTitle('CryptoContracts')
-        self.setWindowIcon(QIcon('blockchain.png'))
+        self.setWindowIcon(QIcon('GUI/blockchain.png'))
 
         exit_action = QAction(QIcon('exit.png'), '&Exit', self)
         exit_action.setShortcut('Ctrl+Q')
@@ -292,7 +292,8 @@ stylesheet = """GUI {
     background-position: center;}"""
 
 
-if __name__ == '__main__':
+def start():
+#if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setStyleSheet(stylesheet)
     screen = app.primaryScreen()
