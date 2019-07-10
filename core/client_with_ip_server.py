@@ -179,7 +179,7 @@ class Client:
 
         latest_transmission = storage.get_block(storage.get_head())
 
-        new_transmission = core.produce_transmission(latest_transmission.transmission_hash, pub_keys, document_hash)
+        new_transmission = core.produce_transmission_fully(latest_transmission.transmission_hash, pub_keys, document_hash)
 
         self.client.send_transmission(new_transmission)
         # send own_transmission to all known peers

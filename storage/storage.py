@@ -53,5 +53,5 @@ def print_all():
 # init empty db with root block
 if db.get('head'.encode('utf-8')) is None:
 	_set_head('ROOT')
-	put_block(core.produce_transmission('ROOT', ['ROOT_KEY_1', 'ROOT_KEY_2'], 'ROOT_DOCUMENT_HASH'))
+	put_block(core.produce_transmission_fully('ROOT', ['ROOT_PRIV_KEY_1', 'ROOT_PRIV_KEY_2'], ['ROOT_KEY_1', 'ROOT_KEY_2'], 'ROOT_DOCUMENT_HASH'))
 

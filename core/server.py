@@ -15,7 +15,7 @@ class Server:
         # Dummy implementation, to be replaced by calls to the actual network script
         self.server = ServerPeer(list_chain=self.list_chain, send_sync_message=self.react_to_sync_request,
                                  send_subchain_message=self.react_to_subchain_request, start_sync=self.synchronize)
-        storage.put_block(core.produce_transmission(storage.get_head(), ["a", "b"], "document-3"))
+        storage.put_block(core.produce_transmission_fully(storage.get_head(), ["priv_a", "priv_b"], ["a", "b"], "document-3"))
         # connect to network, retrieve latest graph
         # now wait for transmissions from clients, verify them and append them to local chain
         # self.synchronize()

@@ -164,15 +164,10 @@ class Client:
         print("SYNC SUCCESS")
         return SUCCESS
 
-    def place_transmission(self, pub_keys: list, document_hash: str):
-        # connect to server and get latest transmission
+    def place_transmission(self, transmission):
+
+        self.client.send_transmission(transmission)
+
         if not self.synchronize() == SUCCESS:
             print("No new transmission possible")
             return
-
-        latest_transmission = storage.get_block(storage.get_head())
-
-        new_transmission = core.produce_transmission(latest_transmission.transmission_hash, pub_keys, document_hash)
-
-        self.client.send_transmission(new_transmission)
-        # send own_transmission to all known peers

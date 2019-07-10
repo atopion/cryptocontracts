@@ -36,9 +36,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     prev = storage.get_block(storage.get_head())
-    t1 = core.core.produce_transmission(prev.transmission_hash, ["a", "b"], "document-1")
-    t2 = core.core.produce_transmission(t1.transmission_hash, ["c", "d"], "document-2")
-    t3 = core.core.produce_transmission(t2.transmission_hash, ["e", "f"], "document-3")
+    t1 = core.core.produce_transmission_fully(prev.transmission_hash, ["priv_a", "priv_b"], ["a", "b"], "document-1")
+    t2 = core.core.produce_transmission_fully(t1.transmission_hash, ["priv_c", "priv_d"], ["c", "d"], "document-2")
+    t3 = core.core.produce_transmission_fully(t2.transmission_hash, ["priv_e", "priv_f"], ["e", "f"], "document-3")
 
     if mode == "server":
         server.Server()

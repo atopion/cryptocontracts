@@ -6,6 +6,7 @@ from core.cryptoHashes import CryptoHashes
 
 from core import core, signing
 from core.transmission import Transmission
+from storage import storage
 from network import registry
 
 ''' Nothing jet
@@ -57,7 +58,7 @@ def compare(checksum_a, checksum_b):
 def lookup(checksum): return None
 
 
-def produce_transmission(previous_hash: str, pub_keys: list, document_hash: str):
+def produce_transmission_fully(previous_hash: str, private_keys: list, pub_keys: list, document_hash: str):
     if previous_hash is None or document_hash is None or pub_keys is None or len(pub_keys) == 0:
         return None
 
@@ -66,10 +67,58 @@ def produce_transmission(previous_hash: str, pub_keys: list, document_hash: str)
     transmission.timestamp = hex(int(time.time()))[2:]
     transmission.pub_keys = pub_keys
     transmission.hash = document_hash
-    transmission.signed_hash = signing.sign(document_hash, pub_keys)
+    transmission.signed_hash = signing.sign(document_hash, private_keys)
     transmission.sign_self()
+    transmission.transmission_hash = signing.sign(document_hash, private_keys)
     return transmission
 
+
+def produce_transmission_stage_one(private_key: str, public_key: str, document_hash: str = None, transmission: Transmission = None):
+    """
+    Produces a temporary transmission object or signs an existing one.
+    :param private_key: Private Key of the signing entity
+    :param public_key: Public Key of the signing entity
+    :param document_hash: Checksum of the document or None if signing an existing transmission
+    :param transmission: An existing transmission or None if signing a new one.
+    :return: None if document_hash and transmission are both None or not None. A new temporary transmission object otherwise.
+    """
+
+    if (document_hash is None and transmission is None) or (document_hash is not None and transmission is not None):
+        return None
+
+    if document_hash is None:
+        transmission.pub_keys.append(public_key)
+        transmission.signed_hash = signing.sign(transmission.signed_hash, private_key)
+        return transmission
+
+    else:
+        transmission = Transmission()
+        transmission.pub_keys = [public_key]
+        transmission.hash = document_hash
+        transmission.signed_hash = signing.sign(document_hash, private_key)
+        return transmission
+
+
+def produce_transmission_stage_two(private_key: str, transmission: Transmission, master: bool = True):
+    """
+    Finishes a temporary transmission object or signs a finished one.
+    :param private_key: Private Key of the signing entity
+    :param public_key: Public Key of the signing entity
+    :param transmission: An existing transmission or None if signing a new one.
+    :param master: Determines if the unit is a master unit (sets previous hash, timestamp and transmission_hash)
+    :return: None if document_hash and transmission are both None or not None. A new temporary transmission object otherwise.
+    """
+
+    if master:
+        transmission.previous_hash = storage.get_block(storage.get_head()).transmission_hash
+        transmission.timestamp = hex(int(time.time()))[2:]
+        transmission.sign_self()
+        transmission.transmission_hash = signing.sign(private_key, transmission.transmission_hash)
+
+    else:
+        transmission.transmission_hash = signing.sign(private_key, transmission.transmission_hash)
+
+    return transmission
 
 def verify_transmission(transmission: Transmission):
     if transmission is None or not transmission.is_valid():
