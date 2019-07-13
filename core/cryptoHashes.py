@@ -370,7 +370,7 @@ class CryptoHashes:
             assert message != None;
             assert messageLengthInBits >= 0;
             if (messageLengthInBits % 8 == 0):
-                input[0:messageLengthInBits / 8] = message[0:messageLengthInBits / 8]
+                input[0:int(messageLengthInBits / 8)] = message[0:int(messageLengthInBits / 8)]
             else:
                 self.partialByteCopy(message, input, messageLengthInBits)
 
@@ -1673,7 +1673,7 @@ class CryptoHashes:
 
 if __name__ == '__main__':
     #bytes = open("C:\\Users\\atopi\\Documents\\studium\\Master\\Semester 1\\Computational Complexity\\Vorlesungen\\merge.pdf", "rb").read()
-    bytes = open("..\\demo.py", "rb").read()
+    bytes = open("../demo.py", "rb").read()
     bytes = bytearray(bytes)
     hexstr = CryptoHashes.sha3_512(bytes)
     hexstr += CryptoHashes.blake(bytes)
