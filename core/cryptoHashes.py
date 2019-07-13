@@ -1481,7 +1481,9 @@ class CryptoHashes:
             for i in range(32):
                 # m[i] = self._block.readUInt32BE(i * 4)
                 # m[i] = self._block[i * 4]
-                m[i] = int.from_bytes(bytearray(self._block[i * 4:(i + 1) * 4]), byteorder='big')
+
+                #m[i] = int.from_bytes(bytearray(self._block[i * 4:(i + 1) * 4]), byteorder='big')
+                m[i] = np.frombuffer(bytearray(self._block[i * 4:(i + 1) * 4]), dtype=np.int32)[0]
             for i in range(16):
                 v[i] = CryptoHashes.rshift(self._h[i], 0)
             for i in range(16, 24, 1):
@@ -1668,3 +1670,12 @@ class CryptoHashes:
 
         arr = k.apply(len(mbytes), mbytes)
         return ''.join('{:02x}'.format(int(x)) for x in arr)
+
+if __name__ == '__main__':
+    #bytes = open("C:\\Users\\atopi\\Documents\\studium\\Master\\Semester 1\\Computational Complexity\\Vorlesungen\\merge.pdf", "rb").read()
+    bytes = open("..\\demo.py", "rb").read()
+    bytes = bytearray(bytes)
+    hexstr = CryptoHashes.sha3_512(bytes)
+    hexstr += CryptoHashes.blake(bytes)
+    hexstr += CryptoHashes.whirlpool(bytes)
+    print("HEXSTR: ", hexstr)
