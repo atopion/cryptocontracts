@@ -19,6 +19,7 @@ from core import core
 from core.transmission import Transmission
 from upnp import upnp
 import urllib.request
+from storage import config
 
 
 
@@ -709,7 +710,10 @@ class Peer:
             try:
                 self.sock_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.sock_server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-                self.port = random.randint(10001,15000)
+                if self.scope == "localhost" or self.scope == "internal":
+                    self.port = random.randint(10001,15000)
+                if self.scope == "external":
+                    self.port = int(config.get("server", "port"))    # get port from config file
                 upnp.add_port(self.port)
                 self.sock_server.bind(('0.0.0.0',self.port))
                 self.sock_server.listen(1)
