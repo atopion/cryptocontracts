@@ -17,7 +17,7 @@ import datetime
 from network import ip_server
 from core import core
 from core.transmission import Transmission
-from upnp import upnp
+#from upnp import upnp
 import urllib.request
 from storage import config
 
@@ -696,8 +696,25 @@ class Peer:
                             # if no prefix consider data a message and print it"""
 
             except ConnectionResetError or ConnectionAbortedError:
-                print("{}: Connection closed.".format(self.get_time()))
-                os._exit(1)
+                print("{}: {}:{} Connection impolitly closed.".format(self.get_time(), address[0],str(address[1])))
+                try:
+                    self.connections.remove(conn)
+                    self.clean_connections()
+                # TODO find out why Error is raised
+                except ValueError:
+                    print("Could not remove connection from connections \n")
+
+                try:
+                    self.connected_peers.remove(address)
+                    self.clean_connected_peers()
+                except ValueError:
+                    print("Could not remove address {}:{} from connected peers \n".format(address[0],str(address[1])))
+
+                try:
+                    self.active_peers.remove(address)
+                    self.clean_active_peers()
+                except ValueError:
+                    print("Could not remove address {}:{} from active peers \n".format(address[0],str(address[1])))
 
     def listen_for_connections(self):
         """ Makes sure that peers can connect to this host.
@@ -712,7 +729,7 @@ class Peer:
                     self.port = random.randint(10001,15000)
                 if self.scope == "external":
                     self.port = int(config.get("server", "port"))    # get port from config file
-                upnp.add_port(self.port)
+#                upnp.add_port(self.port)
                 self.sock_server.bind(('0.0.0.0',self.port))
                 self.sock_server.listen(1)
                 
@@ -777,7 +794,10 @@ class Peer:
 
                 for msg in inputs:
                     if msg != "":
-                        mode = int(bytes(msg, "utf-8").hex()[0:2])
+                        try:
+                            mode = int(bytes(msg, "utf-8").hex()[0:2])
+                        except ValueError:
+                            mode = ""
 #                        print("part message: ", msg)
                         print("{}: MODE {}: ".format(self.get_time(),mode))
                         core.network_log("RECEIVED \\x", mode, " from ", address[0])
@@ -1080,7 +1100,7 @@ class Peer:
             host_addr = socket.gethostbyname(host_name)
 
         else:
-            host_addr = urllib.request.urlopen("https://ident.me").read().decode("utf-8")
+            host_addr = urllib.request.urlopen("https://api.zipixx.com/forwardedfor").read().decode("utf-8")
 
         self.host_addr = (host_addr,self.port)
         
