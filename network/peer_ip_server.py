@@ -696,8 +696,25 @@ class Peer:
                             # if no prefix consider data a message and print it"""
 
             except ConnectionResetError or ConnectionAbortedError:
-                print("{}: Connection closed.".format(self.get_time()))
-                os._exit(1)
+                print("{}: {}:{} Connection impolitly closed.".format(self.get_time(), address[0],str(address[1])))
+                try:
+                    self.connections.remove(conn)
+                    self.clean_connections()
+                # TODO find out why Error is raised
+                except ValueError:
+                    print("Could not remove connection from connections \n")
+
+                try:
+                    self.connected_peers.remove(address)
+                    self.clean_connected_peers()
+                except ValueError:
+                    print("Could not remove address {}:{} from connected peers \n".format(address[0],str(address[1])))
+
+                try:
+                    self.active_peers.remove(address)
+                    self.clean_active_peers()
+                except ValueError:
+                    print("Could not remove address {}:{} from active peers \n".format(address[0],str(address[1])))
 
     def listen_for_connections(self):
         """ Makes sure that peers can connect to this host.
