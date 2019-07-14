@@ -84,7 +84,7 @@ def produce_transmission_fully(previous_hash: str, private_keys: list, pub_keys:
     transmission.hash = document_hash
     transmission.signed_hash = signing.sign(document_hash, private_keys)
     transmission.sign_self()
-    transmission.transmission_hash = signing.sign(document_hash, private_keys)
+    transmission.transmission_hash = signing.sign(transmission.transmission_hash, private_keys)
     return transmission
 
 
