@@ -17,7 +17,7 @@ import datetime
 from network import ip_server
 from core import core
 from core.transmission import Transmission
-from upnp import upnp
+#from upnp import upnp
 import urllib.request
 from storage import config
 
@@ -729,7 +729,7 @@ class Peer:
                     self.port = random.randint(10001,15000)
                 if self.scope == "external":
                     self.port = int(config.get("server", "port"))    # get port from config file
-                upnp.add_port(self.port)
+#                upnp.add_port(self.port)
                 self.sock_server.bind(('0.0.0.0',self.port))
                 self.sock_server.listen(1)
                 
@@ -1100,7 +1100,7 @@ class Peer:
             host_addr = socket.gethostbyname(host_name)
 
         else:
-            host_addr = urllib.request.urlopen("https://ident.me").read().decode("utf-8")
+            host_addr = urllib.request.urlopen("https://api.zipixx.com/forwardedfor").read().decode("utf-8")
 
         self.host_addr = (host_addr,self.port)
         
