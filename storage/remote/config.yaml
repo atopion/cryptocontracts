@@ -1,0 +1,13 @@
+# database connection details
+db:
+  host: 'mariadb'
+  name: 'api'
+  user: ''
+  pass: ''
+
+# registry auth & testing result upload
+cryptocontracts:
+  user: ''
+  pw: ''
+  file_upload_dir: '/flask/upload/'
+
