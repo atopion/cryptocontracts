@@ -15,8 +15,9 @@ import sys
 import time
 import datetime
 from network import ip_server
-import core
+from core import core
 from core.transmission import Transmission
+from upnp import upnp
 
 
 class Peer:
@@ -566,6 +567,7 @@ class Peer:
                         mode = int(bytes(msg, "utf-8").hex()[0:2])
 #                        print("part message: ", msg)
                         print("{}: MODE {}: ".format(self.get_time(), mode))
+                        core.network_log("RECEIVED \\x", mode, " from ", address[0])
                         # look for specific prefix indicating the list of active peers
                         if mode == 11:
 
@@ -706,6 +708,7 @@ class Peer:
                 self.sock_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.sock_server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
                 self.port = random.randint(10001,15000)
+                upnp.add_port(self.port)
                 self.sock_server.bind(('0.0.0.0',self.port))
                 self.sock_server.listen(1)
                 
@@ -773,6 +776,7 @@ class Peer:
                         mode = int(bytes(msg, "utf-8").hex()[0:2])
 #                        print("part message: ", msg)
                         print("{}: MODE {}: ".format(self.get_time(),mode))
+                        core.network_log("RECEIVED \\x", mode, " from ", address[0])
                         # look for specific prefix indicating the list of active peers
                         if mode == 11:
 
@@ -937,6 +941,20 @@ class Peer:
                       
                     if not existing:    # only connect to new peers
                         self.create_new_connection(on)
+
+    def get_host_addr(self):
+        """ Returns the IP address of this host.
+
+        Returns
+        -------
+        tuple (str,int)
+            a tuple containing the IP address of this host and the port that the server socket is bound to
+        """
+
+        host_name = socket.gethostname()
+        host_addr = socket.gethostbyname(host_name)
+
+        return (host_addr, self.port)
                         
     def send_active_connectable_addresses(self, addr=None):
         """ Sends the list of active connectable addresses to all peers connected to this host.
@@ -951,10 +969,12 @@ class Peer:
             if addr:
                 addr.send(b'\x12' + bytes(p, "utf-8") + b'!')
                 print("Connectable addresses sent to freshly connected peer")
+                core.network_log("SEND \\x12 to ", addr)
             else:
                 for address in self.connections:
                     address.send(b'\x12' + bytes(p, "utf-8") + b'!')
                 print("Connectable addresses sent to all connected peers")
+                core.network_log("SEND \\x12 to ", [x for x in self.connections])
         else:
             print("Wanted to send connectable address list but it is empty!")
         # TODO also consider outgoing connections
@@ -973,6 +993,7 @@ class Peer:
 
             for address in self.connections:
                 address.send(b'\x11' + bytes(p, "utf-8") + b'!')
+            core.network_log("SEND \\x11 to ", [x for x in self.connections])
             print("peer list sent to all connected peers")
         else:
             print("Wanted to send active peer list but it is empty!")
@@ -990,6 +1011,7 @@ class Peer:
        p = address[0] + ":" + str(address[1])
        for peer in self.connections:
             peer.send(b'\x13' + bytes(p, "utf-8") + b'!')
+       core.network_log("SEND \\x13 to ", [x for x in self.connections])
        print("Notified connected peers that {} is offline".format(p))
 
     def send_offline_connectable_address(self, address):
@@ -1005,6 +1027,7 @@ class Peer:
         p = address[0] + ":" + str(address[1])
         for peer in self.connections:
             peer.send(b'\x14' + bytes(p, "utf-8") + b'!')
+        core.network_log("SEND \\x14 to ", [x for x in self.connections])
         print("Notified connected peers that {} is offline".format(p))
 
     def send_port(self, address, socket=None):
@@ -1020,8 +1043,10 @@ class Peer:
 
         if socket:
             socket.send(b'\x15' + bytes(p, "utf-8") + b'!')   # ! signals end of message
+            core.network_log("SEND \\x15 to ", socket)
         else:
             address.send(b'\x15' + bytes(p, "utf-8") + b'!')
+            core.network_log("SEND \\x13 to ", address)
         print("{}: Own address sent to {}:{}".format(self.get_time(), address[0], str(address[1])))
         
     def set_host_addr(self):
@@ -1060,16 +1085,19 @@ class Peer:
         self.synchronization_request_answers = []
         self.synchronization_finished_event = threading.Event()
         print("{}: Synchronization Request sent".format(self.get_time()))
+        core.network_log("SEND \\x31 to ", [x for x in self.connections])
         return res
 
     def send_sync_request_answer(self, conn, obj):
         conn.send(b'\x32' + bytes(json.dumps(obj), "utf-8"))
         print("{}: Synchronization Request Answer sent".format(self.get_time()))
+        core.network_log("SEND \\x32 to ", conn)
 
     def request_subchain(self, msg, hash):
         self.synchronization_chain = None
         msg["conn"].send(b'\x33' + bytes(hash, "utf-8"))
         print("{}: Subchain requested".format(self.get_time()))
+        core.network_log("SEND \\x33 to ", msg["conn"])
         self.synchronization_subchain_event.wait(30)
         self.synchronization_subchain_event = threading.Event()
         return self.synchronization_chain
@@ -1080,6 +1108,7 @@ class Peer:
         # send prefix, length of data and chain. ! and & used for separation
         conn.send(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain)
         print("{}: Subchain sent \n".format(self.get_time()))
+        core.network_log("SEND \\x34 to ", conn)
         # conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8") + b'!')
 
     def send_n1_subchain(self, obj):
@@ -1088,10 +1117,12 @@ class Peer:
         for conn in self.connections:
             conn.send(b'\x35' + bytes(str(length), "utf-8") + b'&' + chain)
         print("{}: Subchain sent \n".format(self.get_time()))
+        core.network_log("SEND \\x35 to ", [x for x in self.connections])
 
     def send_transmission(self, transmission: Transmission):
         for conn in self.connections:
             conn.send(b'\x20' + bytes(json.dumps(transmission.to_json()), "utf-8"))
         print("{}: Transmission sent".format(self.get_time()))
+        core.network_log("SEND \\x20 to ", [x for x in self.connections])
 
 

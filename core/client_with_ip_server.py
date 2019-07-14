@@ -54,14 +54,17 @@ class Client:
         if not core.compare(transmission.transmission_hash,
             storage.get_block(storage.get_head()).unsigned_transmission_hash()):
             print("REMOTE SYNC REJECTED")
+            core.network_log("REMOTE TRANSMISSION REJECTED")
             return
 
         if not core.verify_transmission(transmission):
             print("REMOTE SYNC REJECTED")
+            core.network_log("REMOTE TRANSMISSION REJECTED")
             return
 
         storage.put_block(transmission)
         print("REMOTE SYNC ACCEPTED")
+        core.network_log("REMOTE TRANSMISSION ACCEPTED")
 
     @staticmethod
     def react_to_received_subchain(subchain):
@@ -125,6 +128,7 @@ class Client:
                 subchain.reverse()
                 self.client.send_n1_subchain(subchain)
                 print("SYNC SUCCESS")
+                core.network_log("SYNC SUCCESS")
                 return SUCCESS
 
             succeeded = False
@@ -159,27 +163,25 @@ class Client:
 
         if already_synced == len(majority):
             print("ALREADY SYNCHRONIZED")
+            core.network_log("ALREADY SYNCHRONIZED")
             return SUCCESS
 
         # Step 4: Add
         if result is None:
             print("SYNC FAIL")
+            core.network_log("SYNC FAIL")
             return FAIL
 
         for sub in result[1:]:
             storage.put_block(sub)
         print("SYNC SUCCESS")
+        core.network_log("SYNC SUCCESS")
         return SUCCESS
 
-    def place_transmission(self, pub_keys: list, document_hash: str):
-        # connect to server and get latest transmission
+    def place_transmission(self, transmission):
+
+        self.client.send_transmission(transmission)
+
         if not self.synchronize() == SUCCESS:
             print("No new transmission possible")
             return
-
-        latest_transmission = storage.get_block(storage.get_head())
-
-        new_transmission = core.produce_transmission_fully(latest_transmission.transmission_hash, pub_keys, document_hash)
-
-        self.client.send_transmission(new_transmission)
-        # send own_transmission to all known peers

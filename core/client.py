@@ -8,8 +8,8 @@ from network.client_peer import Peer
 SUCCESS = 1
 FAIL = 0
 
+
 class Client:
-    # Dummy TODO
 
     def __init__(self, addr=None):
         # Dummy implementation, to be replaced by calls to the actual network script
@@ -46,14 +46,17 @@ class Client:
         if not core.compare(transmission.transmission_hash,
             storage.get_block(storage.get_head()).unsigned_transmission_hash()):
             print("REMOTE SYNC REJECTED")
+            core.network_log("REMOTE TRANSMISSION REJECTED")
             return
 
         if not core.verify_transmission(transmission):
             print("REMOTE SYNC REJECTED")
+            core.network_log("REMOTE TRANSMISSION REJECTED")
             return
 
         storage.put_block(transmission)
         print("REMOTE SYNC ACCEPTED")
+        core.network_log("REMOTE TRANSMISSION ACCEPTED")
 
     @staticmethod
     def react_to_received_subchain(subchain):
@@ -118,6 +121,7 @@ class Client:
                 subchain.reverse()
                 self.client.send_n1_subchain(subchain)
                 print("SYNC SUCCESS")
+                core.network_log("SYNC SUCCESS")
                 return SUCCESS
 
             succeeded = False
@@ -152,16 +156,19 @@ class Client:
 
         if already_synced == len(majority):
             print("ALREADY SYNCHRONIZED")
+            core.network_log("ALREADY SYNCHRONIZED")
             return SUCCESS
 
         # Step 4: Add
         if result is None:
             print("SYNC FAIL")
+            core.network_log("SYNC FAIL")
             return FAIL
 
         for sub in result[1:]:
             storage.put_block(sub)
         print("SYNC SUCCESS")
+        core.network_log("SYNC SUCCESS")
         return SUCCESS
 
     def place_transmission(self, transmission):

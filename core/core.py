@@ -1,6 +1,9 @@
 import random
 import os
 import time
+import datetime
+
+from requests import get
 
 from core.cryptoHashes import CryptoHashes
 
@@ -21,6 +24,18 @@ print( hex(Core.checksum(bytes=bytearray(open("./README.md", "r").read(), "utf-8
 
 print("Compare result: ", Core.compare(Core.checksum(path="./README.md"), Core.checksum(bytes=bytearray(open("./README.md", "r").read(), "utf-8"))))
 '''
+
+def logging_date():
+    t = datetime.datetime.now()
+    return "[" + str(t.year) + "-" + str(t.month) + "-" + str(t.day) + " " + str(t.hour) + ":" + str(t.minute) +\
+        ":" + str(t.second) + ":" + str(t.microsecond) + "] "
+
+
+# Network log
+external_ip = get('http://atopion.com/apps/helper/ip.php').text
+network_file = open("network-log.txt", "a")
+network_file.write("\n\n\t\tNew Log instance started at " + logging_date() + " at IP " + external_ip)
+network_file.flush()
 
 
 def checksum(path = None, s = None, byte = None):
@@ -44,8 +59,8 @@ def checksum(path = None, s = None, byte = None):
     start_time = time.time()
     hexstr += CryptoHashes.whirlpool(byte)
     hexstr += CryptoHashes.sha3_512(byte)
-    #hexstr += CryptoHashes.blake(byte)
-    print("Execution: ", time.time() - start_time, " s")
+    hexstr += CryptoHashes.blake(byte)
+    print("Produce checksum execution: ", time.time() - start_time, " s")
     return int(hexstr, 16)
 
 
@@ -136,3 +151,9 @@ def verify_transmission(transmission: Transmission):
 
     return True
 
+def network_log(*argv):
+    text = ""
+    for arg in argv:
+        text += str(arg)
+
+    network_file.write(logging_date() + " " + external_ip + ": " + text)
