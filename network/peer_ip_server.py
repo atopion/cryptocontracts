@@ -922,7 +922,7 @@ class Peer:
         host_net = self.host_addr[0].split(".")  # local network address of host
         
         while True:
-            time.sleep(30)
+            time.sleep(60)
             print("\n{}: Refreshing connections...".format(self.get_time()))
             self.active_connectable_addresses = self.get_peers_from_ip_server()
             
