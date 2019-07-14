@@ -913,8 +913,20 @@ class Peer:
                             print("{}: Message: {} \n".format(self.get_time(),msg))
 
             except ConnectionResetError or ConnectionAbortedError:
-                print("{}: Connection closed.".format(self.get_time()))
-                os._exit(1)
+                print("{}: {}:{} impolitly disconnected.".format(self.get_time(), address[0],str(address[1])))
+                try:
+                    self.server_peers.remove(address)
+                except:
+                    print("{}: Could not remove server peer: {}:{} from server list".format(self.get_time(), address[0],str(address[1])))
+                try:
+                    self.active_connectable_addresses.remove(address)
+                except:
+                    print("{}: Could not remove server peer: {}:{} from active connectable address list".format(self.get_time(), address[0],str(address[1])))
+                try:
+                    self.address_connection_pairs.pop(str(address[0]+":"+str(address[1])))
+                except Exception as e:
+                    print("{}: Could not remove address from address connection pair dict".format(self.get_time()))
+                    print("Reason: ",e)
 
     def refresh_connections(self):
         """ Gets the current active nodes in the network in a specific frequency"""
