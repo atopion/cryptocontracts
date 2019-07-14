@@ -9,7 +9,6 @@ from core.cryptoHashes import CryptoHashes
 
 from core import core, signing
 from core.transmission import Transmission
-from storage import storage
 from network import registry
 
 ''' Nothing jet
@@ -114,7 +113,7 @@ def produce_transmission_stage_one(private_key: str, public_key: str, document_h
         return transmission
 
 
-def produce_transmission_stage_two(private_key: str, transmission: Transmission, master: bool = True):
+def produce_transmission_stage_two(previous_hash: str, private_key: str, transmission: Transmission, master: bool = True):
     """
     Finishes a temporary transmission object or signs a finished one.
     :param private_key: Private Key of the signing entity
@@ -125,7 +124,7 @@ def produce_transmission_stage_two(private_key: str, transmission: Transmission,
     """
 
     if master:
-        transmission.previous_hash = storage.get_block(storage.get_head()).transmission_hash
+        transmission.previous_hash = previous_hash
         transmission.timestamp = hex(int(time.time()))[2:]
         transmission.sign_self()
         transmission.transmission_hash = signing.sign(private_key, transmission.transmission_hash)
