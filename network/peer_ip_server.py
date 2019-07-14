@@ -794,7 +794,10 @@ class Peer:
 
                 for msg in inputs:
                     if msg != "":
-                        mode = int(bytes(msg, "utf-8").hex()[0:2])
+                        try:
+                            mode = int(bytes(msg, "utf-8").hex()[0:2])
+                        except ValueError:
+                            mode = ""
 #                        print("part message: ", msg)
                         print("{}: MODE {}: ".format(self.get_time(),mode))
                         core.network_log("RECEIVED \\x", mode, " from ", address[0])
