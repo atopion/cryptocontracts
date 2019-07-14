@@ -17,6 +17,7 @@ import datetime
 from network import ip_server
 import core
 from core.transmission import Transmission
+import urllib.request
 
 
 class Peer:
@@ -343,7 +344,7 @@ class Peer:
 #                print("Connected to " + addr[0] + ":" + str(addr[1]))
                 existing = False
                 for peer in self.server_peers:
-                    if (peer[0] == addr[0] and peer[1] == addr[1]):
+                    if (peer[0] == addr[0] and int(peer[1]) == int(addr[1])):
                         existing = True
                 if not existing:
                     print("{}: Could not connect to {}:{} due to a timeout".format(self.get_time(),addr[0],str(addr[1])))
@@ -706,6 +707,7 @@ class Peer:
                 self.sock_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.sock_server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
                 self.port = random.randint(10001,15000)
+#                self.port = 10001
                 self.sock_server.bind(('0.0.0.0',self.port))
                 self.sock_server.listen(1)
                 
@@ -912,7 +914,7 @@ class Peer:
         host_net = self.host_addr[0].split(".")  # local network address of host
         
         while True:
-            time.sleep(300)
+            time.sleep(30)
             print("\n{}: Refreshing connections...".format(self.get_time()))
             self.active_connectable_addresses = self.get_peers_from_ip_server()
             
@@ -1034,9 +1036,12 @@ class Peer:
             num3 = random.randint(0,199)
             host_addr = "127." + str(num1) + "." + str(num2) + "." + str(num3)
             
-        else:
+        elif self.scope == "internal":
             host_name = socket.gethostname()
             host_addr = socket.gethostbyname(host_name)
+            
+        else:
+            host_addr = urllib.request.urlopen("https://ident.me").read().decode("utf-8")
         
         self.host_addr = (host_addr,self.port)
         
