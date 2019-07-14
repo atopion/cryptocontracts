@@ -297,7 +297,6 @@ class GUI(QMainWindow):
 		if self.transmission.check_self() and self.transmission.is_valid():
 			storage.put_block(self.transmission)
 
-
 	def inputs_valid(self):
 		if self.file_label != self.DEFAULT_STRING and self.sign1_label != self.DEFAULT_STRING and self.sign2_label != self.DEFAULT_STRING:
 			####test if keys are matching and for valid doc_hash####
@@ -329,9 +328,11 @@ class GUI(QMainWindow):
 		pubkey = ""
 		for line in file:
 			if not write_flag:
-				if "Comment" in line or "ssh-rsa" in line:
+				if "Comment" in line:
 					write_flag = True
 					continue
+				elif "ssh-rsa" in line:
+					write_flag = True
 			elif "END" in line:
 				write_flag = False
 			if write_flag:
