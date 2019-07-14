@@ -108,9 +108,6 @@ class Peer:
         self.synchronization_chain = []
         self.synchronization_request_answers = []
         
-        self.port = random.randint(10001,15000) # choose a random port for listening to incoming connections
-        upnp.add_port(self.port)
-        
         # Tell where peers are located, in WAN or in LAN
         if scope == "external" or scope == "internal" or scope == "localhost":
             self.scope = scope
@@ -270,7 +267,7 @@ class Peer:
         server_thread.daemon = True
         server_thread.start()
         
-#        time.sleep(1)    # so server_thread has time to bind socket and assign port
+        time.sleep(1)    # so server_thread has time to bind socket and assign port
         self.set_host_addr()
 #        self.active_connectable_addresses.append(host_addr)
 #        self.store_addresses()
