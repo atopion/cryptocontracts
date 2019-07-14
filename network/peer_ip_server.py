@@ -109,6 +109,7 @@ class Peer:
         self.synchronization_request_answers = []
         
         self.port = random.randint(10001,15000) # choose a random port for listening to incoming connections
+        upnp.add_port(self.port)
         
         # Tell where peers are located, in WAN or in LAN
         if scope == "external" or scope == "internal" or scope == "localhost":
