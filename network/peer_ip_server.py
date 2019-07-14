@@ -18,6 +18,8 @@ from network import ip_server
 from core import core
 from core.transmission import Transmission
 from upnp import upnp
+import urllib.request
+
 
 
 class Peer:
@@ -344,7 +346,7 @@ class Peer:
 #                print("Connected to " + addr[0] + ":" + str(addr[1]))
                 existing = False
                 for peer in self.server_peers:
-                    if (peer[0] == addr[0] and peer[1] == addr[1]):
+                    if (peer[0] == addr[0] and int(peer[1]) == int(addr[1])):
                         existing = True
                 if not existing:
                     print("{}: Could not connect to {}:{} due to a timeout".format(self.get_time(),addr[0],str(addr[1])))
@@ -370,7 +372,7 @@ class Peer:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(addr)
             connected = True
-        except ConnectionRefusedError or TimeoutError or BlockingIOError:
+        except (ConnectionRefusedError, TimeoutError, BlockingIOError):
             connected = False
         if connected:
             self.server_peers.append(addr)
@@ -916,7 +918,7 @@ class Peer:
         host_net = self.host_addr[0].split(".")  # local network address of host
         
         while True:
-            time.sleep(300)
+            time.sleep(30)
             print("\n{}: Refreshing connections...".format(self.get_time()))
             self.active_connectable_addresses = self.get_peers_from_ip_server()
             
@@ -955,7 +957,7 @@ class Peer:
         host_addr = socket.gethostbyname(host_name)
 
         return (host_addr, self.port)
-                        
+
     def send_active_connectable_addresses(self, addr=None):
         """ Sends the list of active connectable addresses to all peers connected to this host.
 
@@ -1059,10 +1061,13 @@ class Peer:
             num3 = random.randint(0,199)
             host_addr = "127." + str(num1) + "." + str(num2) + "." + str(num3)
             
-        else:
+        elif self.scope == "internal":
             host_name = socket.gethostname()
             host_addr = socket.gethostbyname(host_name)
-        
+
+        else:
+            host_addr = urllib.request.urlopen("https://ident.me").read().decode("utf-8")
+
         self.host_addr = (host_addr,self.port)
         
     def store_addresses(self):

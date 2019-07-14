@@ -20,7 +20,5 @@ pass=
 ;; public server from which to request initial ip list for network join
 [ip-server]
 addr=
-user=
-pass=
 
 
