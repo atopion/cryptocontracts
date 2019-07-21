@@ -68,7 +68,7 @@ class Transmission:
     def list_from_json(json_str: str):
         l = json.loads(json_str)
         result = [Transmission.generate(**x) for x in l]
-        print("RESULT: ", result)
+#        print("RESULT: ", result)
         #for entry in l:
         #    print("ENTRY: ", entry)
         #    result.append(Transmission.from_json(entry))
