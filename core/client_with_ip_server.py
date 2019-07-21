@@ -19,12 +19,12 @@ FAIL = 0
 class Client:
     # Dummy TODO
 
-    def __init__(self, addr=None, scope=None):
+    def __init__(self, addr=None, scope=None, output=None):
         # Dummy implementation, to be replaced by calls to the actual network script
         self.client = Peer(addr=addr, list_chain=self.list_chain, send_sync_message=self.react_to_sync_request,
                            send_subchain_message=self.react_to_subchain_request, start_sync=self.synchronize,
                            receive_subchain_message=self.react_to_received_subchain,
-                           receive_message=self.react_to_receive_messsage, scope=scope)
+                           receive_message=self.react_to_receive_messsage, scope=scope, output=output)
 
     @staticmethod
     def list_chain():
@@ -40,7 +40,8 @@ class Client:
             "transmission_hash_signed": signing.sign(t.unsigned_transmission_hash(), signing.OWN_PRIVATE_KEY)
         }
         self.client.send_sync_request_answer(conn, x)
-        print("INCOMING REMOTE SYNC REQUEST")
+        if self.client.output == "debug":
+            print("INCOMING REMOTE SYNC REQUEST")
         
     def react_to_subchain_request(self, conn, transmission_hash):
         subchain = storage.get_subchain(transmission_hash)
@@ -53,17 +54,20 @@ class Client:
 
         if not core.compare(transmission.transmission_hash,
             storage.get_block(storage.get_head()).unsigned_transmission_hash()):
-            print("REMOTE SYNC REJECTED")
+            if self.client.output == "debug":
+                print("REMOTE SYNC REJECTED")
             core.network_log("REMOTE TRANSMISSION REJECTED")
             return
 
         if not core.verify_transmission(transmission):
-            print("REMOTE SYNC REJECTED")
+            if self.client.output == "debug":
+                print("REMOTE SYNC REJECTED")
             core.network_log("REMOTE TRANSMISSION REJECTED")
             return
 
         storage.put_block(transmission)
-        print("REMOTE SYNC ACCEPTED")
+        if self.client.output == "debug":
+            print("REMOTE SYNC ACCEPTED")
         core.network_log("REMOTE TRANSMISSION ACCEPTED")
 
     @staticmethod
@@ -127,7 +131,7 @@ class Client:
                 subchain = storage.get_subchain(maj["hash"])
                 subchain.reverse()
                 self.client.send_n1_subchain(subchain)
-                print("SYNC SUCCESS")
+                print("SYNCRONIZATION SUCCESSFUL")
                 core.network_log("SYNC SUCCESS")
                 return SUCCESS
 
@@ -168,13 +172,13 @@ class Client:
 
         # Step 4: Add
         if result is None:
-            print("SYNC FAIL")
+            print("SYNCHRONIZATION FAILED")
             core.network_log("SYNC FAIL")
             return FAIL
 
         for sub in result[1:]:
             storage.put_block(sub)
-        print("SYNC SUCCESS")
+        print("SYNCHRONIZATION SUCCESSFUL")
         core.network_log("SYNC SUCCESS")
         return SUCCESS
 
