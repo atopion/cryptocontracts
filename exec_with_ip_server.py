@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
 if __name__ == '__main__':
     arg_len = len(sys.argv)
-    if not (arg_len == 4 or arg_len == 5):
+    if not (arg_len == 4 or arg_len == 5 or arg_len == 6):
         print("Wrong number of arguments")
         sys.exit(1)
 
@@ -44,13 +44,32 @@ if __name__ == '__main__':
         print("Irregular arguments (no integers)")
         sys.exit(1)
         
-    if arg_len == 5:
+    if arg_len == 6:
         scope = sys.argv[4]
         if not (scope == "internal" or scope == "external" or scope == "localhost"):
             print("Wrong argument for scope. Can either be internal, external or localhost")
             sys.exit(1)
-    else:
+        output = sys.argv[5]
+        if not (output == "user" or output == "debug"):
+            print("Wrong argument for output. Can either be user or debug")
+            sys.exit(1)
+            
+    if arg_len == 5:
+        option = sys.argv[4]
+        if (option == "internal" or option == "external" or option == "localhost"):
+            scope = option
+            output = None
+            
+        elif (option == "user" or option == "debug"):
+            output = option
+            scope = None
+        else:
+            print("{} is not a valid argument".format(option))
+            sys.exit(1)
+            
+    if arg_len == 4:
         scope = None
+        outout = None
 
     prev = storage.get_block(storage.get_head())
     t1 = core.core.produce_transmission_fully(prev.transmission_hash, ["priv_a", "priv_b"], ["a", "b"], "document-1")
@@ -93,7 +112,7 @@ if __name__ == '__main__':
 
         # TODO more
 
-    client = client_with_ip_server.Client(scope=scope)
+    client = client_with_ip_server.Client(scope=scope, output=output)
     client.client.connect_to_net()
 
 stylesheet = """
