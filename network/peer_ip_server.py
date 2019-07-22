@@ -20,6 +20,16 @@ from core.transmission import Transmission
 #from upnp import upnp
 import urllib.request
 from storage import config
+from GUI import gui
+
+#import warnings
+#warnings.filterwarnings("error")
+
+import asyncio
+import subprocess
+import multiprocessing as mp
+
+
 
 
 
@@ -90,6 +100,9 @@ class Peer:
     client_sockets = []
     address_connection_pairs = {}
     host_addr = None
+    gui_thread = None
+    gui_signal = False
+    gui_process = None
     
 
     synchronization_finished_event = threading.Event()
@@ -199,7 +212,6 @@ class Peer:
                 if i == "peers":
                     p = self.get_active_peers()
                     print(p)
-
                 elif i == "connectable":
                     p = self.get_active_connectable_addresses()
                     print(p)
@@ -229,6 +241,10 @@ class Peer:
                     self.clean_connected_peers()
                 elif i == "pairs":
                     print(self.address_connection_pairs)
+                elif i == "gui":
+#                    self.gui_signal = True
+#                    self.lock.release()
+                    self.gui_handler()
                 else:
                     for connection in self.connections:
                         connection.send(bytes(str(i),'utf-8'))
@@ -406,7 +422,7 @@ class Peer:
         
         self.sock_server.shutdown(socket.SHUT_RDWR)
         self.sock_server.close()
-
+        
     def get_active_connectable_addresses(self):
         """ Returns the list of all peers currently connected to the net/server peer with their port numbers to connect to
 
@@ -520,6 +536,22 @@ class Peer:
         time = datetime.datetime.now().time()
         
         return time
+    
+    def gui_handler(self):
+        
+        if self.gui_thread is None or self.gui_thread.is_alive() == False:
+            try:
+                gui_thread = threading.Thread(target=gui.start)
+                gui_thread.daemon = True
+                gui_thread.start()
+                self.gui_thread = gui_thread
+            except Warning as w:
+                if self.output == "debug":
+                    print("{}: Warning raised when starting GUI: {}".format(self.get_time(), w))
+            if self.output == "debug":
+                print("{}: Started GUI".format(self.get_time()))
+        else:
+            print("Graphical User Interface is already running")
 
     def incoming_connection_handler(self, conn, address):
         """ Manages connections to other peers
