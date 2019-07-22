@@ -20,14 +20,14 @@ from core.transmission import Transmission
 #from upnp import upnp
 import urllib.request
 from storage import config
-from GUI import gui
-
-#import warnings
-#warnings.filterwarnings("error")
-
-import asyncio
-import subprocess
-import multiprocessing as mp
+#from GUI import gui
+#
+##import warnings
+##warnings.filterwarnings("error")
+#
+#import asyncio
+#import subprocess
+#import multiprocessing as mp
 
 
 
@@ -100,9 +100,9 @@ class Peer:
     client_sockets = []
     address_connection_pairs = {}
     host_addr = None
-    gui_thread = None
-    gui_signal = False
-    gui_process = None
+#    gui_thread = None
+#    gui_signal = False
+#    gui_process = None
     
 
     synchronization_finished_event = threading.Event()
@@ -241,10 +241,8 @@ class Peer:
                     self.clean_connected_peers()
                 elif i == "pairs":
                     print(self.address_connection_pairs)
-                elif i == "gui":
-#                    self.gui_signal = True
-#                    self.lock.release()
-                    self.gui_handler()
+#                elif i == "gui":
+#                    self.gui_handler()
                 else:
                     for connection in self.connections:
                         connection.send(bytes(str(i),'utf-8'))
@@ -537,21 +535,21 @@ class Peer:
         
         return time
     
-    def gui_handler(self):
-        
-        if self.gui_thread is None or self.gui_thread.is_alive() == False:
-            try:
-                gui_thread = threading.Thread(target=gui.start)
-                gui_thread.daemon = True
-                gui_thread.start()
-                self.gui_thread = gui_thread
-            except Warning as w:
-                if self.output == "debug":
-                    print("{}: Warning raised when starting GUI: {}".format(self.get_time(), w))
-            if self.output == "debug":
-                print("{}: Started GUI".format(self.get_time()))
-        else:
-            print("Graphical User Interface is already running")
+#    def gui_handler(self):
+#        
+#        if self.gui_thread is None or self.gui_thread.is_alive() == False:
+#            try:
+#                gui_thread = threading.Thread(target=gui.start)
+#                gui_thread.daemon = True
+#                gui_thread.start()
+#                self.gui_thread = gui_thread
+#            except Warning as w:
+#                if self.output == "debug":
+#                    print("{}: Warning raised when starting GUI: {}".format(self.get_time(), w))
+#            if self.output == "debug":
+#                print("{}: Started GUI".format(self.get_time()))
+#        else:
+#            print("Graphical User Interface is already running")
 
     def incoming_connection_handler(self, conn, address):
         """ Manages connections to other peers
@@ -840,7 +838,7 @@ class Peer:
                             print("{}: Could not remove address from address connection pair dict".format(self.get_time()))
                             print("Reason: ",e)
 
-                    self.send_offline_connectable_address(address)  # notify other peers that one peer went offline
+#                    self.send_offline_connectable_address(address)  # notify other peers that one peer went offline
 
                     self.client_sockets.remove(sock)
                     sock.shutdown(socket.SHUT_RDWR)
