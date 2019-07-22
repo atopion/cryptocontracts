@@ -68,7 +68,7 @@ class ModeDialog(QDialog):
 class GUI(QMainWindow):
 
 	def __init__(self):
-		super().__init__()
+		super(GUI, self).__init__(parent=None)
 		self.PROGRESS_MAX = 100
 		self.DEFAULT_STRING = "No Data"
 		self.progress = QProgressBar(self)
@@ -232,13 +232,14 @@ class GUI(QMainWindow):
 		mode.exec_()
 		master = mode.is_master()
 		ip = mode.get_text()
-		if self.inputs_valid():
+		if self.inputs_valid() and GUI.validate_ip(ip):
 			if master:
 				print("master send", ip)
-				# self.master_send(master, ip)
+				self.master_send(master, ip)
 			else:
-				print("slave receive")
+				print("slave receive", ip)
 				#self.slave_receive(ip)
+
 		mode.close()
 
 	def master_send(self, master, ip):
@@ -297,6 +298,7 @@ class GUI(QMainWindow):
 		if self.transmission.check_self() and self.transmission.is_valid():
 			storage.put_block(self.transmission)
 
+
 	def inputs_valid(self):
 		if self.file_label != self.DEFAULT_STRING and self.sign1_label != self.DEFAULT_STRING and self.sign2_label != self.DEFAULT_STRING:
 			####test if keys are matching and for valid doc_hash####
@@ -338,7 +340,7 @@ class GUI(QMainWindow):
 			if write_flag:
 				pubkey += line
 		if write_flag:
-			pubkey = pubkey.split(" ")[0]
+			pubkey = pubkey.split(" ")[1]
 		if not pubkey:
 			raise ValueError
 		return pubkey
@@ -406,7 +408,7 @@ class GUI(QMainWindow):
 
 
 stylesheet = """GUI {
-    border-image: url("blockchain.png"); 
+    border-image: url("GUI/blockchain.png"); 
     background-repeat: no-repeat; 
     background-position: center;}"""
 
