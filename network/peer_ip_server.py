@@ -20,6 +20,7 @@ from core.transmission import Transmission
 #from upnp import upnp
 import urllib.request
 from storage import config
+import storage
 #from GUI import gui
 #
 ##import warnings
@@ -286,6 +287,10 @@ class Peer:
         server_thread.daemon = True
         server_thread.start()
         
+        gui_thread = threading.Thread(target=self.gui_handler)
+        gui_thread.daemon = True
+        gui_thread.start()
+        
         time.sleep(1)    # so server_thread has time to bind socket and assign port
         self.set_host_addr()
         
@@ -418,8 +423,11 @@ class Peer:
             sock.shutdown(socket.SHUT_RDWR)
             sock.close()
         
-        self.sock_server.shutdown(socket.SHUT_RDWR)
-        self.sock_server.close()
+        try:
+            self.sock_server.shutdown(socket.SHUT_RDWR)
+            self.sock_server.close()
+        except OSError:
+            pass
         
     def get_active_connectable_addresses(self):
         """ Returns the list of all peers currently connected to the net/server peer with their port numbers to connect to
@@ -534,6 +542,55 @@ class Peer:
         time = datetime.datetime.now().time()
         
         return time
+    
+    def gui_handler(self):
+        
+        gui_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        addr = config.get("gui", "addr")
+        port = int(config.get("gui", "port"))
+        gui_socket.bind((addr, self.port+1))
+        gui_socket.listen(1)
+    
+    
+        while True:
+            gui_conn, gui_addr = gui_socket.accept()
+            
+            if self.output == "debug":
+                print("{}: GUI connected".format(self.get_time()))
+            
+            while True:
+                try:
+                    data = gui_conn.recv(4096)
+                    if not data:
+                        if self.output == "debug":
+                            print("{}: GUI closed".format(self.get_time()))
+                        gui_conn.close()
+                        break
+                    data = str(data, "utf-8").split("!")
+                    print("data: ", data)
+                    mode = int(bytes(data[0], "utf-8").hex()[0:2])
+                    print("mode: ", mode)
+                    content = data[1:]
+                    print("content: ", content)
+                    if mode == 11:
+                        if self.output == "debug":
+                            print("{}: Received chain request from GUI".format(self.get_time()))
+                        head = storage.get_head()
+                        gui_conn.send(b'\x61' + bytes(head, "utf-8"))
+                        if self.output == "debug":
+                            print("{}: Sent head of chain to GUI".format(self.get_time()))
+                            
+                    if mode == 12:
+                        if self.output == "debug":
+                            print("{}: Received document upload request from GUI".format(self.get_time()))
+                            
+                        storage.put_block(content)       
+                    
+                
+                except ConnectionResetError or ConnectionAbortedError:
+                    if self.output == "debug":
+                        print("{}: Lost connection to GUI".format(self.get_time()))
+            
     
 #    def gui_handler(self):
 #        
@@ -803,7 +860,7 @@ class Peer:
             self.clean_connected_peers()
             self.active_peers.append(addr)
             self.clean_active_peers()
-            print("\n{}: {}:{} connected \n".format(self.get_time(),str(addr[0]),str(addr[1])))
+            print("{}: {}:{} connected \n".format(self.get_time(),str(addr[0]),str(addr[1])))
 #            self.send_active_peers()
     
     def outgoing_connection_handler(self, address, sock):
@@ -1024,7 +1081,7 @@ class Peer:
         while True:
             time.sleep(60)
             if self.output == "debug":
-                print("\n{}: Refreshing connections...".format(self.get_time()))
+                print("{}: Refreshing connections...".format(self.get_time()))
             self.active_connectable_addresses = self.get_peers_from_ip_server()
             
             if self.output == "debug":
