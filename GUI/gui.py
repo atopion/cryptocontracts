@@ -412,7 +412,7 @@ class GUI(QMainWindow):
 		PORT = 10150
 		BUFFER_SIZE = 2048
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.bind((ip, PORT))
+		s.bind(("0.0.0.0", PORT))
 		s.listen(1)
 		data_str = ""
 
