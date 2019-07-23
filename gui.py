@@ -5,6 +5,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from core import core, transmission
 from storage import storage
+import threading
+import json
 
 
 class ModeDialog(QDialog):
@@ -81,6 +83,9 @@ class GUI(QMainWindow):
 		self.check_privkey = QCheckBox()
 		self.check_conn = QCheckBox()
 		self.transmission = transmission.Transmission()
+		self.ipc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.previous_block = None
+		self.mutex = threading.Lock()
 		self.init_ui()
 
 	def init_ui(self):
@@ -245,10 +250,12 @@ class GUI(QMainWindow):
 	def master_send(self, master, ip):
 		#ip, ok = QInputDialog.getText(self, 'Select mode', 'Enter ip address of other client:')
 		own_ip = GUI.get_ip("local")
+		self.start_ipc()
 
 		if GUI.validate_ip(ip):
 			# connect to partner client
 			if not ip == own_ip:
+				print("stage 1:")
 				transmission = core.produce_transmission_stage_one(self.privkey, self.pubkey, self.doc_hash)
 				trans_json = transmission.to_json()
 				print(type(trans_json))
@@ -258,13 +265,23 @@ class GUI(QMainWindow):
 					except ValueError as err:
 						print("Connection failed:", err)
 						return
-					transmission = core.produce_transmission_stage_two(self.privkey, transmission.from_json(received_trans), True)
-					trans_json = transmission.to_json()
-					GUI.send_to_partner(trans_json)
-					received_trans = GUI.receive_from_partner(GUI.get_ip("local"))
-					self.transmission = transmission.from_json(received_trans)
-					####################################################################################################
-					self.update_progress_bar(self.conn_label, ip)
+					print("stage 2:")
+					#############
+					self.ipc_send(1)
+					if not self.mutex.locked():
+						previous_hash = self.previous_block.transmission_hash
+						transmission = core.produce_transmission_stage_two(self.privkey, previous_hash,
+																		   transmission.from_json(received_trans), True)
+						trans_json = transmission.to_json()
+						GUI.send_to_partner(trans_json)
+						try:
+							received_trans = GUI.receive_from_partner(GUI.get_ip("local"))
+						except ValueError as err:
+							print("Connection failed:", err)
+							return
+						self.transmission = transmission.from_json(received_trans)
+						####################################################################################################
+						self.update_progress_bar(self.conn_label, ip)
 				else:
 					return
 			else:
@@ -275,7 +292,7 @@ class GUI(QMainWindow):
 			self.update_progress_bar(self.conn_label, ip)
 
 	def slave_receive(self, ip):
-		print("round 1:")
+		print("stage 1:")
 		own_ip = GUI.get_ip("local")
 		received_json = GUI.receive_from_partner(own_ip)
 		print(received_json)
@@ -284,7 +301,7 @@ class GUI(QMainWindow):
 		trans_json = transmission.to_json(transmission)
 		GUI.send_to_partner(ip, trans_json)
 
-		print("round 2:")
+		print("stage 2:")
 		received_json = GUI.receive_from_partner(own_ip)
 		print(received_json)
 		received_trans = core.Transmission.from_json(received_json)
@@ -296,8 +313,7 @@ class GUI(QMainWindow):
 	def clicked_add_to_layer(self):
 	# put block into db if valid
 		if self.transmission.check_self() and self.transmission.is_valid():
-			storage.put_block(self.transmission)
-
+			self.ipc_send(0)
 
 	def inputs_valid(self):
 		if self.file_label != self.DEFAULT_STRING and self.sign1_label != self.DEFAULT_STRING and self.sign2_label != self.DEFAULT_STRING:
@@ -405,6 +421,47 @@ class GUI(QMainWindow):
 		if not data_str:
 			raise ValueError
 		return data_str
+
+	def start_ipc(self):
+		self.ipc_socket.bind(("127.0.0.1", 9001))
+		try:
+			self.ipc_socket.connect("127.0.0.1")
+		except OSError as err:
+			print("error:", err)
+			return
+		thread = threading.Thread(target=self.ipc_receive)
+		thread.daemon = True
+		thread.start()
+
+	def ipc_send(self, mode):
+		# 1 for get head 0 for attach block
+		if mode:
+			self.ipc_socket.send(b'\x11')
+			self.mutex.acquire()
+		else:
+			self.ipc_socket.send(b'\x12' + bytes(self.transmission.to_json(), "utf-8"))
+			self.mutex.acquire()
+
+	def ipc_receive(self):
+
+		while True:
+			data = self.ipc_socket.recv(4096)
+
+			data = str(data, "utf-8")
+			mode = int(bytes(data, "utf-8").hex()[0:2])
+
+			if len(data) > 1:
+				content = data[1:]
+				print("content: ", content)
+
+			if mode == 21:
+				self.previous_block = json.loads(content)
+				print("Head of Chain: ", self.previous_block)
+				self.mutex.release()
+
+			if mode == 22:  # Ack from Peer
+				print("Document successfully placed in Chain")
+
 
 
 stylesheet = """GUI {
