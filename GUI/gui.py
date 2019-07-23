@@ -6,6 +6,7 @@ from PyQt5.QtGui import *
 from core import core, transmission
 import threading
 import json
+from storage import config
 
 
 class ModeDialog(QDialog):
@@ -251,7 +252,7 @@ class GUI(QMainWindow):
 
 	def master_send(self, master, ip):
 		#ip, ok = QInputDialog.getText(self, 'Select mode', 'Enter ip address of other client:')
-		own_ip = GUI.get_ip("local")
+		own_ip = GUI.get_ip("public")
 
 		if GUI.validate_ip(ip):
 			# connect to partner client
@@ -276,7 +277,7 @@ class GUI(QMainWindow):
 						trans_json = transmission.to_json()
 						GUI.send_to_partner(trans_json)
 						try:
-							received_trans = GUI.receive_from_partner(GUI.get_ip("local"))
+							received_trans = GUI.receive_from_partner(GUI.get_ip("public"))
 						except ValueError as err:
 							print("Connection failed:", err)
 							return
@@ -294,7 +295,7 @@ class GUI(QMainWindow):
 
 	def slave_receive(self, ip):
 		print("stage 1:")
-		own_ip = GUI.get_ip("local")
+		own_ip = GUI.get_ip("public")
 		received_json = GUI.receive_from_partner(own_ip)
 		print(received_json)
 		received_trans = core.Transmission.from_json(received_json)
@@ -424,9 +425,9 @@ class GUI(QMainWindow):
 		return data_str
 
 	def start_ipc(self):
-		self.ipc_socket.bind(("127.0.0.1", 9002))
+		self.ipc_socket.bind((config.get("gui", "addr"), 9002))
 		try:
-			self.ipc_socket.connect("127.0.0.1", 9001)
+			self.ipc_socket.connect((config.get("gui", "addr"), config.get("gui", "port")))
 		except OSError as err:
 			print("error:", err)
 			return
