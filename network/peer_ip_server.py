@@ -547,7 +547,7 @@ class Peer:
         gui_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         addr = config.get("gui", "addr")
 #        port = int(config.get("gui", "port"))
-        port = config.get("gui", "port")
+        port = int(config.get("gui", "port"))
         gui_socket.bind((addr, port))
         gui_socket.listen(1)
     
