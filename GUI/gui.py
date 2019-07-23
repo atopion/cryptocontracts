@@ -4,7 +4,6 @@ import socket
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from core import core, transmission
-from storage import storage
 import threading
 import json
 
@@ -90,11 +89,14 @@ class GUI(QMainWindow):
 
 	def init_ui(self):
 
+
 		screen = QDesktopWidget()
 		self.setGeometry(0, 0, screen.width()/2, screen.height()/2)
 		self.setMinimumSize(screen.width()/3, screen.height()/3)
 		self.setWindowTitle('CryptoContracts')
 		self.setWindowIcon(QIcon('GUI/blockchain.png'))
+
+		self.start_ipc()
 
 		exit_action = QAction(QIcon('exit.png'), '&Exit', self)
 		exit_action.setShortcut('Ctrl+Q')
@@ -250,7 +252,6 @@ class GUI(QMainWindow):
 	def master_send(self, master, ip):
 		#ip, ok = QInputDialog.getText(self, 'Select mode', 'Enter ip address of other client:')
 		own_ip = GUI.get_ip("local")
-		self.start_ipc()
 
 		if GUI.validate_ip(ip):
 			# connect to partner client
@@ -423,9 +424,9 @@ class GUI(QMainWindow):
 		return data_str
 
 	def start_ipc(self):
-		self.ipc_socket.bind(("127.0.0.1", 9001))
+		self.ipc_socket.bind(("127.0.0.1", 9002))
 		try:
-			self.ipc_socket.connect("127.0.0.1")
+			self.ipc_socket.connect("127.0.0.1", 9001)
 		except OSError as err:
 			print("error:", err)
 			return
@@ -440,7 +441,6 @@ class GUI(QMainWindow):
 			self.mutex.acquire()
 		else:
 			self.ipc_socket.send(b'\x12' + bytes(self.transmission.to_json(), "utf-8"))
-			self.mutex.acquire()
 
 	def ipc_receive(self):
 
@@ -448,7 +448,9 @@ class GUI(QMainWindow):
 			data = self.ipc_socket.recv(4096)
 
 			data = str(data, "utf-8")
+			print("data: ", data)
 			mode = int(bytes(data, "utf-8").hex()[0:2])
+			print("mode: ", mode)
 
 			if len(data) > 1:
 				content = data[1:]
