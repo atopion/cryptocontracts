@@ -251,7 +251,7 @@ class GUI(QMainWindow):
 				self.master_send(master, ip)
 			else:
 				print("slave receive", ip)
-				#self.slave_receive(ip)
+				self.slave_receive(ip)
 
 		mode.close()
 
