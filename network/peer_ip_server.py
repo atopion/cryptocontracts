@@ -19,8 +19,7 @@ from core import core
 from core.transmission import Transmission
 #from upnp import upnp
 import urllib.request
-from storage import config
-import storage
+from storage import config, storage
 #from GUI import gui
 #
 ##import warnings
@@ -547,7 +546,7 @@ class Peer:
         
         gui_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         addr = config.get("gui", "addr")
-        port = int(config.get("gui", "port"))
+#        port = int(config.get("gui", "port"))
         gui_socket.bind((addr, self.port+1))
         gui_socket.listen(1)
     
@@ -566,25 +565,32 @@ class Peer:
                             print("{}: GUI closed".format(self.get_time()))
                         gui_conn.close()
                         break
-                    data = str(data, "utf-8").split("!")
+                    
+                    if self.output == "debug":
+                        print("{}: From GUI received {}".format(self.get_time(),data))
+                    
+                    data = str(data, "utf-8")
                     print("data: ", data)
                     mode = int(bytes(data[0], "utf-8").hex()[0:2])
                     print("mode: ", mode)
                     content = data[1:]
                     print("content: ", content)
+                    
                     if mode == 11:
                         if self.output == "debug":
                             print("{}: Received chain request from GUI".format(self.get_time()))
                         head = storage.get_head()
-                        gui_conn.send(b'\x61' + bytes(head, "utf-8"))
+                        gui_conn.send(b'\x21' + bytes(json.dumps(head), "utf-8"))
                         if self.output == "debug":
                             print("{}: Sent head of chain to GUI".format(self.get_time()))
                             
                     if mode == 12:
                         if self.output == "debug":
                             print("{}: Received document upload request from GUI".format(self.get_time()))
-                            
-                        storage.put_block(content)       
+                        content = Transmission.from_json(content)
+                        print("content: ", content)
+                        storage.put_block(content)  
+                        gui_conn.send(b'\x22')
                     
                 
                 except ConnectionResetError or ConnectionAbortedError:
@@ -1079,7 +1085,7 @@ class Peer:
         host_net = self.host_addr[0].split(".")  # local network address of host
         
         while True:
-            time.sleep(60)
+            time.sleep(300)
             if self.output == "debug":
                 print("{}: Refreshing connections...".format(self.get_time()))
             self.active_connectable_addresses = self.get_peers_from_ip_server()
@@ -1219,7 +1225,6 @@ class Peer:
     def set_host_addr(self):
         """ Sets the IP address and the port of this host """
     
-        
         if self.scope == "localhost":
             num1 = random.randint(0,199)
             num2 = random.randint(0,199)
