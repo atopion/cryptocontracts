@@ -100,10 +100,7 @@ class Peer:
     client_sockets = []
     address_connection_pairs = {}
     host_addr = None
-#    gui_thread = None
-#    gui_signal = False
-#    gui_process = None
-    
+    gui_socket = None    
 
     synchronization_finished_event = threading.Event()
     synchronization_subchain_event = threading.Event()
@@ -428,6 +425,12 @@ class Peer:
         except OSError:
             pass
         
+        try:
+            self.gui_socket.shutdown(socket.SHUT_RDWR)
+            self.gui_socket.close()
+        except OSError:
+            pass
+        
     def get_active_connectable_addresses(self):
         """ Returns the list of all peers currently connected to the net/server peer with their port numbers to connect to
 
@@ -544,16 +547,16 @@ class Peer:
     
     def gui_handler(self):
         
-        gui_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.gui_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         addr = config.get("gui", "addr")
 #        port = int(config.get("gui", "port"))
         port = int(config.get("gui", "port"))
-        gui_socket.bind((addr, port))
-        gui_socket.listen(1)
+        self.gui_socket.bind((addr, port))
+        self.gui_socket.listen(1)
     
     
         while True:
-            gui_conn, gui_addr = gui_socket.accept()
+            gui_conn, gui_addr = self.gui_socket.accept()
             
             if self.output == "debug":
                 print("{}: GUI connected".format(self.get_time()))
