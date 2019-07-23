@@ -84,7 +84,6 @@ class GUI(QMainWindow):
 		self.check_conn = QCheckBox()
 		self.transmission = transmission.Transmission()
 		self.ipc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.ipc_socket.bind(("127.0.0.1", 9001))
 		self.previous_block = None
 		self.mutex = threading.Lock()
 		self.init_ui()
@@ -424,6 +423,12 @@ class GUI(QMainWindow):
 		return data_str
 
 	def start_ipc(self):
+		self.ipc_socket.bind(("127.0.0.1", 9001))
+		try:
+			self.ipc_socket.connect("127.0.0.1")
+		except OSError as err:
+			print("error:", err)
+			return
 		thread = threading.Thread(target=self.ipc_receive)
 		thread.daemon = True
 		thread.start()
