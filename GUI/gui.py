@@ -101,7 +101,7 @@ class GUI(QMainWindow):
 
 		exit_action = QAction(QIcon('exit.png'), '&Exit', self)
 		exit_action.setShortcut('Ctrl+Q')
-		exit_action.triggered.connect(qApp.quit)
+		exit_action.triggered.connect(self.close_window())
 
 		select_button = QPushButton('Select PDF...', self)
 		select_button.clicked.connect(self.clicked_select_file)
@@ -119,7 +119,7 @@ class GUI(QMainWindow):
 		add_to_layer_button.clicked.connect(self.clicked_add_to_layer)
 
 		ip_label = QLineEdit()
-		ip_label.setText("My IP:" + GUI.get_ip("local"))
+		ip_label.setText("My IP:" + GUI.get_ip("public"))
 		ip_label.setReadOnly(True)
 
 		self.file_label.setText(self.DEFAULT_STRING)
@@ -184,6 +184,11 @@ class GUI(QMainWindow):
 		self.setCentralWidget(widget)
 
 		self.show()
+
+	def close_window(self):
+		self.ipc_socket.shutdown(socket.SHUT_RDWR)
+		self.ipc_socket.close()
+		qApp.quit()
 
 	def update_progress_bar(self, line_edit, s):
 		if not s:
@@ -425,9 +430,10 @@ class GUI(QMainWindow):
 		return data_str
 
 	def start_ipc(self):
-		self.ipc_socket.bind((config.get("gui", "addr"), 9002))
+		self.ipc_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		self.ipc_socket.bind((config.get("gui", "addr"), 9005))
 		try:
-			self.ipc_socket.connect((config.get("gui", "addr"), config.get("gui", "port")))
+			self.ipc_socket.connect((config.get("gui", "addr"), int(config.get("gui", "port"))))
 		except OSError as err:
 			print("error:", err)
 			return
