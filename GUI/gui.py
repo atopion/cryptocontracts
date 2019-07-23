@@ -101,7 +101,7 @@ class GUI(QMainWindow):
 
 		exit_action = QAction(QIcon('exit.png'), '&Exit', self)
 		exit_action.setShortcut('Ctrl+Q')
-		exit_action.triggered.connect(self.close_window())
+		exit_action.triggered.connect(self.close_window)
 
 		select_button = QPushButton('Select PDF...', self)
 		select_button.clicked.connect(self.clicked_select_file)
