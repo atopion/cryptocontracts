@@ -464,14 +464,16 @@ class GUI(QMainWindow):
 			print("data: ", data)
 
 			if len(data) > 1:
-				content = data[1:]
-				print("content: ", content)
 				mode = int(bytes(data, "utf-8").hex()[0:2])
 				print("mode: ", mode)
 
+			if len(data) > 1:
+				content = data[1:]
+				print("content: ", content)
+
 			if mode == 21:
-				self.previous_block = json.loads(content)
-				print("Head of Chain: ", self.previous_block)
+				self.previous_hash = json.loads(content)
+				print("Head of Chain: ", self.previous_hash)
 				self.mutex.release()
 
 			if mode == 22:  # Ack from Peer
