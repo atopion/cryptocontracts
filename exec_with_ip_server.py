@@ -10,7 +10,8 @@ from storage import config, storage
 from core import core, client_with_ip_server, server
 #from GUI import gui
 import sys
-
+#import os
+#os.system("rm -R /home/rene/Desktop/blockchain_project/database1")
 """
 Old initial
 
@@ -69,7 +70,7 @@ if __name__ == '__main__':
             
     if arg_len == 4:
         scope = None
-        outout = None
+        output = None
 
     prev = storage.get_block(storage.get_head())
     t1 = core.core.produce_transmission_fully(prev.transmission_hash, ["priv_a", "priv_b"], ["a", "b"], "document-1")
