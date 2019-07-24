@@ -266,6 +266,7 @@ class GUI(QMainWindow):
 				print("stage 1:")
 				temp_trans = core.produce_transmission_stage_one(self.privkey, self.pubkey, self.doc_hash)
 				trans_json = temp_trans.to_json()
+				print(trans_json)
 				print(type(trans_json))
 				if GUI.send_to_partner(ip, trans_json):
 					try:
@@ -280,13 +281,16 @@ class GUI(QMainWindow):
 					print("get head signaling, continuing..")
 					print("previous hash:")
 					print(self.previous_hash)
+					print("received_trans:")
+					print(received_trans)
 					# trans_stage2 = transmission.from_json(self.previous_block)
-
+					temp = core.Transmission.from_json(received_trans)
+					temp.hash = str(temp.hash)
+					temp.signed_hash = str(temp.signed_hash)
 					# previous_hash = self.previous_hash
-					temp_trans2 = core.produce_transmission_stage_two(self.previous_hash, self.privkey,
-																	   core.Transmission.from_json(received_trans), True)
+					temp_trans2 = core.produce_transmission_stage_two(previous_hash=self.previous_hash, private_key=self.privkey, transmission=temp, master=True)
 					trans_json2 = temp_trans2.to_json()
-					GUI.send_to_partner(trans_json2)
+					GUI.send_to_partner(ip, trans_json2)
 					try:
 						received_trans = GUI.receive_from_partner(GUI.get_ip(own_ip))
 					except ValueError as err:
@@ -318,7 +322,7 @@ class GUI(QMainWindow):
 		received_json = GUI.receive_from_partner(own_ip)
 		print(received_json)
 		received_trans = core.Transmission.from_json(received_json)
-		temp_trans = core.produce_transmission_stage_two(self.privkey, transmission=received_trans, master=False)
+		temp_trans = core.produce_transmission_stage_two(previous_hash=None, private_key=self.privkey, transmission=received_trans, master=False)
 		trans_json = temp_trans.to_json()
 		GUI.send_to_partner(ip, trans_json)
 		self.update_progress_bar(self.conn_label, ip)
