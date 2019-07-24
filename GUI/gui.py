@@ -413,7 +413,7 @@ class GUI(QMainWindow):
 	@staticmethod
 	def receive_from_partner(ip):
 		PORT = 10150
-		BUFFER_SIZE = 2048
+		BUFFER_SIZE = 4096
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		s.bind(("0.0.0.0", PORT))
 		s.listen(1)
