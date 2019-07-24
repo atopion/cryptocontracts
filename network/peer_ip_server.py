@@ -558,8 +558,7 @@ class Peer:
         while True:
             gui_conn, gui_addr = self.gui_socket.accept()
             
-            if self.output == "debug":
-                print("{}: GUI connected".format(self.get_time()))
+            print("{}: GUI connected".format(self.get_time()))
             
             while True:
                 try:
@@ -603,23 +602,6 @@ class Peer:
                 except ConnectionResetError or ConnectionAbortedError:
                     if self.output == "debug":
                         print("{}: Lost connection to GUI".format(self.get_time()))
-            
-    
-#    def gui_handler(self):
-#        
-#        if self.gui_thread is None or self.gui_thread.is_alive() == False:
-#            try:
-#                gui_thread = threading.Thread(target=gui.start)
-#                gui_thread.daemon = True
-#                gui_thread.start()
-#                self.gui_thread = gui_thread
-#            except Warning as w:
-#                if self.output == "debug":
-#                    print("{}: Warning raised when starting GUI: {}".format(self.get_time(), w))
-#            if self.output == "debug":
-#                print("{}: Started GUI".format(self.get_time()))
-#        else:
-#            print("Graphical User Interface is already running")
 
     def incoming_connection_handler(self, conn, address):
         """ Manages connections to other peers
