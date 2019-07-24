@@ -276,8 +276,8 @@ class GUI(QMainWindow):
 					#############
 					self.ipc_send(1)
 					# blocking until received head
-					print("received_trans:")
-					print(received_trans)
+					# print("received_trans:")
+					# print(received_trans)
 					# trans_stage2 = transmission.from_json(self.previous_block)
 					temp = core.Transmission.from_json(received_trans)
 					temp.hash = str(temp.hash)
@@ -308,7 +308,7 @@ class GUI(QMainWindow):
 		print("stage 1:")
 		own_ip = GUI.get_ip("public")
 		received_json = GUI.receive_from_partner(own_ip)
-		print(received_json)
+		# print(received_json)
 		received_trans = core.Transmission.from_json(received_json)
 		temp_trans = core.produce_transmission_stage_one(self.privkey, self.pubkey, transmission=received_trans)
 		trans_json = temp_trans.to_json()
@@ -316,7 +316,7 @@ class GUI(QMainWindow):
 
 		print("stage 2:")
 		received_json = GUI.receive_from_partner(own_ip)
-		print(received_json)
+		# print(received_json)
 		received_trans = core.Transmission.from_json(received_json)
 		temp_trans = core.produce_transmission_stage_two(previous_hash=None, private_key=self.privkey, transmission=received_trans, master=False)
 		trans_json = temp_trans.to_json()
@@ -325,9 +325,9 @@ class GUI(QMainWindow):
 
 	def clicked_add_to_layer(self):
 	# put block into db if valid
-		print("adding to layer")
-		print("check self:", self.transmission.check_self())
-		print("is valid:", self.transmission.is_valid())
+		# print("adding to layer")
+		# print("check self:", self.transmission.check_self())
+		# print("is valid:", self.transmission.is_valid())
 		if self.transmission.check_self() and self.transmission.is_valid():
 			print(self.transmission.to_json())
 			self.ipc_send(0)
@@ -412,7 +412,7 @@ class GUI(QMainWindow):
 		except OSError as err:
 			print("Could not connect:", err)
 			return s.close()
-		print("sending message", data)
+		# print("sending message", data)
 		s.send(byte)
 		s.close()
 		return True
@@ -432,7 +432,7 @@ class GUI(QMainWindow):
 			data = conn.recv(BUFFER_SIZE)
 			if not data:
 				break
-			print("received data:", data.decode("utf-8"))
+			# print("received data:", data.decode("utf-8"))
 			data_str += data.decode("utf-8")
 		conn.close()
 		if not data_str:
@@ -453,7 +453,7 @@ class GUI(QMainWindow):
 
 	def ipc_send(self, mode):
 		# 1 for get head 0 for attach block
-		print("type of mode", type(mode))
+		# print("type of mode", type(mode))
 		if mode == 1:
 			self.ipc_socket.send(b'\x11')
 			self.mutex.acquire()
@@ -466,19 +466,19 @@ class GUI(QMainWindow):
 			data = self.ipc_socket.recv(4096)
 
 			data = str(data, "utf-8")
-			print("data: ", data)
+			# print("data: ", data)
 
 			if len(data) > 1:
 				content = data[1:]
-				print("content: ", content)
+				# print("content: ", content)
 
 			if data != "":
 				mode = int(bytes(data, "utf-8").hex()[0:2])
-				print("mode: ", mode)
+				# print("mode: ", mode)
 
 				if mode == 21:
 					self.previous_hash = json.loads(content)
-					print("Head of Chain: ", self.previous_hash)
+					# print("Head of Chain: ", self.previous_hash)
 					self.mutex.release()
 
 				if mode == 22:  # Ack from Peer
