@@ -288,8 +288,10 @@ class GUI(QMainWindow):
 					temp.hash = str(temp.hash)
 					temp.signed_hash = str(temp.signed_hash)
 					# previous_hash = self.previous_hash
+					print("temp:", temp.to_json())
 					temp_trans2 = core.produce_transmission_stage_two(previous_hash=self.previous_hash, private_key=self.privkey, transmission=temp, master=True)
 					trans_json2 = temp_trans2.to_json()
+					print("stage2 block string", trans_json2)
 					GUI.send_to_partner(ip, trans_json2)
 					try:
 						received_trans = GUI.receive_from_partner(GUI.get_ip(own_ip))
