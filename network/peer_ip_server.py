@@ -584,7 +584,7 @@ class Peer:
                         if self.output == "debug":
                             print("{}: Received chain request from GUI".format(self.get_time()))
                         head = storage.get_head()
-                        gui_conn.send(b'\x21' + bytes(json.dumps(head), "utf-8"))
+                        gui_conn.send(b'\x21' + bytes(Transmission.to_json(head), "utf-8"))
                         if self.output == "debug":
                             print("{}: Sent head of chain to GUI".format(self.get_time()))
                             
