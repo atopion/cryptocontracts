@@ -84,7 +84,7 @@ class GUI(QMainWindow):
 		self.check_conn = QCheckBox()
 		self.transmission = transmission.Transmission()
 		self.ipc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.previous_block = None
+		self.previous_hash = None
 		self.mutex = threading.Lock()
 		self.mutex.acquire()
 		self.init_ui()
@@ -278,12 +278,12 @@ class GUI(QMainWindow):
 					self.ipc_send(1)
 					# blocking until received head
 					print("get head signaling, continuing..")
-					print("previous Block:")
-					print(self.previous_block)
-					trans_stage2 = transmission.from_json(self.previous_block)
+					print("previous hash:")
+					print(self.previous_hash)
+					# trans_stage2 = transmission.from_json(self.previous_block)
 
-					previous_hash = trans_stage2.previous_hash
-					transmission = core.produce_transmission_stage_two(previous_hash, self.privkey,
+					# previous_hash = self.previous_hash
+					transmission = core.produce_transmission_stage_two(self.previous_hash, self.privkey,
 																	   transmission.from_json(received_trans), True)
 					trans_json = transmission.to_json()
 					GUI.send_to_partner(trans_json)
@@ -462,12 +462,12 @@ class GUI(QMainWindow):
 
 			data = str(data, "utf-8")
 			print("data: ", data)
-			mode = int(bytes(data, "utf-8").hex()[0:2])
-			print("mode: ", mode)
 
 			if len(data) > 1:
 				content = data[1:]
 				print("content: ", content)
+				mode = int(bytes(data, "utf-8").hex()[0:2])
+				print("mode: ", mode)
 
 			if mode == 21:
 				self.previous_block = json.loads(content)
