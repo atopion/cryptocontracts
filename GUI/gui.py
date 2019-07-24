@@ -86,6 +86,7 @@ class GUI(QMainWindow):
 		self.ipc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.previous_block = None
 		self.mutex = threading.Lock()
+		self.mutex.acquire()
 		self.init_ui()
 
 	def init_ui(self):
@@ -276,6 +277,7 @@ class GUI(QMainWindow):
 					#############
 					self.ipc_send(1)
 					if not self.mutex.locked():
+						print("locked after get head signaling, continuing..")
 						previous_hash = self.previous_block.transmission_hash
 						transmission = core.produce_transmission_stage_two(self.privkey, previous_hash,
 																		   transmission.from_json(received_trans), True)
@@ -305,7 +307,7 @@ class GUI(QMainWindow):
 		print(received_json)
 		received_trans = core.Transmission.from_json(received_json)
 		transmission = core.produce_transmission_stage_one(self.privkey, self.pubkey, transmission=received_trans)
-		trans_json = transmission.to_json(transmission)
+		trans_json = transmission.to_json()
 		GUI.send_to_partner(ip, trans_json)
 
 		print("stage 2:")
