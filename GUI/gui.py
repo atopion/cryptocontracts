@@ -278,8 +278,8 @@ class GUI(QMainWindow):
 					self.ipc_send(1)
 					# blocking until received head
 					print("get head signaling, continuing..")
-					previous_hash = self.previous_block.transmission_hash
-					transmission = core.produce_transmission_stage_two(self.privkey, previous_hash,
+					previous_hash = transmission.from_json(self.previous_block).previous_hash
+					transmission = core.produce_transmission_stage_two(previous_hash, self.privkey,
 																	   transmission.from_json(received_trans), True)
 					trans_json = transmission.to_json()
 					GUI.send_to_partner(trans_json)
