@@ -331,7 +331,6 @@ class GUI(QMainWindow):
 		if self.transmission.check_self() and self.transmission.is_valid():
 			print(self.transmission.to_json())
 			self.ipc_send(0)
-			self.update_progress_bar()
 
 	def inputs_valid(self):
 		if self.file_label != self.DEFAULT_STRING and self.sign1_label != self.DEFAULT_STRING and self.sign2_label != self.DEFAULT_STRING:
