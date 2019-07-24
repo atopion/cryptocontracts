@@ -266,8 +266,6 @@ class GUI(QMainWindow):
 				print("stage 1:")
 				temp_trans = core.produce_transmission_stage_one(self.privkey, self.pubkey, self.doc_hash)
 				trans_json = temp_trans.to_json()
-				print(trans_json)
-				print(type(trans_json))
 				if GUI.send_to_partner(ip, trans_json):
 					try:
 						received_trans = GUI.receive_from_partner(own_ip)
@@ -278,9 +276,6 @@ class GUI(QMainWindow):
 					#############
 					self.ipc_send(1)
 					# blocking until received head
-					print("get head signaling, continuing..")
-					print("previous hash:")
-					print(self.previous_hash)
 					print("received_trans:")
 					print(received_trans)
 					# trans_stage2 = transmission.from_json(self.previous_block)
@@ -288,10 +283,9 @@ class GUI(QMainWindow):
 					temp.hash = str(temp.hash)
 					temp.signed_hash = str(temp.signed_hash)
 					# previous_hash = self.previous_hash
-					print("temp:", temp.to_json())
+					# print("temp:", temp.to_json())
 					temp_trans2 = core.produce_transmission_stage_two(previous_hash=self.previous_hash, private_key=self.privkey, transmission=temp, master=True)
 					trans_json2 = temp_trans2.to_json()
-					print("stage2 block string", trans_json2)
 					GUI.send_to_partner(ip, trans_json2)
 					try:
 						received_trans = GUI.receive_from_partner(GUI.get_ip(own_ip))
@@ -337,6 +331,7 @@ class GUI(QMainWindow):
 		if self.transmission.check_self() and self.transmission.is_valid():
 			print(self.transmission.to_json())
 			self.ipc_send(0)
+			self.update_progress_bar()
 
 	def inputs_valid(self):
 		if self.file_label != self.DEFAULT_STRING and self.sign1_label != self.DEFAULT_STRING and self.sign2_label != self.DEFAULT_STRING:
@@ -475,20 +470,20 @@ class GUI(QMainWindow):
 			print("data: ", data)
 
 			if len(data) > 1:
-				mode = int(bytes(data, "utf-8").hex()[0:2])
-				print("mode: ", mode)
-
-			if len(data) > 1:
 				content = data[1:]
 				print("content: ", content)
 
-			if mode == 21:
-				self.previous_hash = json.loads(content)
-				print("Head of Chain: ", self.previous_hash)
-				self.mutex.release()
+			if data != "":
+				mode = int(bytes(data, "utf-8").hex()[0:2])
+				print("mode: ", mode)
 
-			if mode == 22:  # Ack from Peer
-				print("Document successfully placed in Chain")
+				if mode == 21:
+					self.previous_hash = json.loads(content)
+					print("Head of Chain: ", self.previous_hash)
+					self.mutex.release()
+
+				if mode == 22:  # Ack from Peer
+					print("Document successfully placed in Chain")
 
 
 
