@@ -284,7 +284,7 @@ class GUI(QMainWindow):
 						trans_json = transmission.to_json()
 						GUI.send_to_partner(trans_json)
 						try:
-							received_trans = GUI.receive_from_partner(GUI.get_ip("public"))
+							received_trans = GUI.receive_from_partner(GUI.get_ip(own_ip))
 						except ValueError as err:
 							print("Connection failed:", err)
 							return
@@ -425,7 +425,7 @@ class GUI(QMainWindow):
 			if not data:
 				break
 			print("received data:", data.decode("utf-8"))
-			data_str = data.decode("utf-8")
+			data_str += data.decode("utf-8")
 		conn.close()
 		if not data_str:
 			raise ValueError
