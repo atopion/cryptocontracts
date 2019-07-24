@@ -595,6 +595,9 @@ class Peer:
                         print("content: ", content)
                         storage.put_block(content)  
                         gui_conn.send(b'\x22')
+                        if self.cb_start_sync is not None:
+                            print("{}: Starting synchronization...".format(self.get_time()))
+                            self.cb_start_sync()
                     
                 
                 except ConnectionResetError or ConnectionAbortedError:
