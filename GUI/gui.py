@@ -329,7 +329,11 @@ class GUI(QMainWindow):
 
 	def clicked_add_to_layer(self):
 	# put block into db if valid
+		print("adding to layer")
+		print("check self:", self.transmission.check_self())
+		print("is valid:", self.transmission.is_valid())
 		if self.transmission.check_self() and self.transmission.is_valid():
+			print(self.transmission.to_json())
 			self.ipc_send(0)
 
 	def inputs_valid(self):
@@ -453,10 +457,11 @@ class GUI(QMainWindow):
 
 	def ipc_send(self, mode):
 		# 1 for get head 0 for attach block
-		if mode:
+		print("type of mode", type(mode))
+		if mode == 1:
 			self.ipc_socket.send(b'\x11')
 			self.mutex.acquire()
-		else:
+		elif mode == 0:
 			self.ipc_socket.send(b'\x12' + bytes(self.transmission.to_json(), "utf-8"))
 
 	def ipc_receive(self):
