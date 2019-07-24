@@ -9,6 +9,7 @@ from core.cryptoHashes import CryptoHashes
 
 from core import core, signing
 from core.transmission import Transmission
+from storage import storage
 from network import registry
 
 ''' Nothing jet
@@ -64,6 +65,8 @@ def checksum(path = None, s = None, byte = None):
 
 
 def compare(checksum_a, checksum_b):
+    print("A", checksum_a)
+    print("B", checksum_b)
     if checksum_a == checksum_b:
         return True
     return False
@@ -113,10 +116,11 @@ def produce_transmission_stage_one(private_key: str, public_key: str, document_h
         return transmission
 
 
-def produce_transmission_stage_two(previous_hash: str, private_key: str, transmission: Transmission, master: bool = True):
+def produce_transmission_stage_two(private_key: str, transmission: Transmission, previous_hash: str = None, master: bool = True):
     """
     Finishes a temporary transmission object or signs a finished one.
     :param private_key: Private Key of the signing entity
+    :param previous_hash: Hash of previous block
     :param public_key: Public Key of the signing entity
     :param transmission: An existing transmission or None if signing a new one.
     :param master: Determines if the unit is a master unit (sets previous hash, timestamp and transmission_hash)
@@ -133,6 +137,7 @@ def produce_transmission_stage_two(previous_hash: str, private_key: str, transmi
         transmission.transmission_hash = signing.sign(private_key, transmission.transmission_hash)
 
     return transmission
+
 
 def verify_transmission(transmission: Transmission):
     if transmission is None or not transmission.is_valid():
