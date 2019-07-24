@@ -276,21 +276,21 @@ class GUI(QMainWindow):
 					print("stage 2:")
 					#############
 					self.ipc_send(1)
-					if not self.mutex.locked():
-						print("locked after get head signaling, continuing..")
-						previous_hash = self.previous_block.transmission_hash
-						transmission = core.produce_transmission_stage_two(self.privkey, previous_hash,
-																		   transmission.from_json(received_trans), True)
-						trans_json = transmission.to_json()
-						GUI.send_to_partner(trans_json)
-						try:
-							received_trans = GUI.receive_from_partner(GUI.get_ip(own_ip))
-						except ValueError as err:
-							print("Connection failed:", err)
-							return
-						self.transmission = transmission.from_json(received_trans)
-						####################################################################################################
-						self.update_progress_bar(self.conn_label, ip)
+					# blocking until received head
+					print("get head signaling, continuing..")
+					previous_hash = self.previous_block.transmission_hash
+					transmission = core.produce_transmission_stage_two(self.privkey, previous_hash,
+																	   transmission.from_json(received_trans), True)
+					trans_json = transmission.to_json()
+					GUI.send_to_partner(trans_json)
+					try:
+						received_trans = GUI.receive_from_partner(GUI.get_ip(own_ip))
+					except ValueError as err:
+						print("Connection failed:", err)
+						return
+					self.transmission = transmission.from_json(received_trans)
+					####################################################################################################
+					self.update_progress_bar(self.conn_label, ip)
 				else:
 					return
 			else:
