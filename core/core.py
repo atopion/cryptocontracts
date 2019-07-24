@@ -65,8 +65,6 @@ def checksum(path = None, s = None, byte = None):
 
 
 def compare(checksum_a, checksum_b):
-    print("A", checksum_a)
-    print("B", checksum_b)
     if checksum_a == checksum_b:
         return True
     return False
