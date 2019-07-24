@@ -264,8 +264,8 @@ class GUI(QMainWindow):
 			# connect to partner client
 			if not ip == own_ip:
 				print("stage 1:")
-				transmission = core.produce_transmission_stage_one(self.privkey, self.pubkey, self.doc_hash)
-				trans_json = transmission.to_json()
+				temp_trans = core.produce_transmission_stage_one(self.privkey, self.pubkey, self.doc_hash)
+				trans_json = temp_trans.to_json()
 				print(type(trans_json))
 				if GUI.send_to_partner(ip, trans_json):
 					try:
@@ -283,16 +283,16 @@ class GUI(QMainWindow):
 					# trans_stage2 = transmission.from_json(self.previous_block)
 
 					# previous_hash = self.previous_hash
-					transmission = core.produce_transmission_stage_two(self.previous_hash, self.privkey,
-																	   transmission.from_json(received_trans), True)
-					trans_json = transmission.to_json()
-					GUI.send_to_partner(trans_json)
+					temp_trans2 = core.produce_transmission_stage_two(self.previous_hash, self.privkey,
+																	   core.Transmission.from_json(received_trans), True)
+					trans_json2 = temp_trans2.to_json()
+					GUI.send_to_partner(trans_json2)
 					try:
 						received_trans = GUI.receive_from_partner(GUI.get_ip(own_ip))
 					except ValueError as err:
 						print("Connection failed:", err)
 						return
-					self.transmission = transmission.from_json(received_trans)
+					self.transmission = core.Transmission.from_json(received_trans)
 					####################################################################################################
 					self.update_progress_bar(self.conn_label, ip)
 				else:
@@ -310,16 +310,16 @@ class GUI(QMainWindow):
 		received_json = GUI.receive_from_partner(own_ip)
 		print(received_json)
 		received_trans = core.Transmission.from_json(received_json)
-		transmission = core.produce_transmission_stage_one(self.privkey, self.pubkey, transmission=received_trans)
-		trans_json = transmission.to_json()
+		temp_trans = core.produce_transmission_stage_one(self.privkey, self.pubkey, transmission=received_trans)
+		trans_json = temp_trans.to_json()
 		GUI.send_to_partner(ip, trans_json)
 
 		print("stage 2:")
 		received_json = GUI.receive_from_partner(own_ip)
 		print(received_json)
 		received_trans = core.Transmission.from_json(received_json)
-		transmission = core.produce_transmission_stage_two(self.privkey, transmission=received_trans, master=False)
-		trans_json = transmission.to_json(transmission)
+		temp_trans = core.produce_transmission_stage_two(self.privkey, transmission=received_trans, master=False)
+		trans_json = temp_trans.to_json()
 		GUI.send_to_partner(ip, trans_json)
 		self.update_progress_bar(self.conn_label, ip)
 
