@@ -9,8 +9,8 @@ from core.cryptoHashes import CryptoHashes
 
 from core import core, signing
 from core.transmission import Transmission
-from storage import storage
 from network import registry
+
 
 ''' Nothing jet
 
@@ -131,10 +131,10 @@ def produce_transmission_stage_two(private_key: str, transmission: Transmission,
         transmission.previous_hash = previous_hash
         transmission.timestamp = hex(int(time.time()))[2:]
         transmission.sign_self()
-        transmission.transmission_hash = signing.sign(private_key, transmission.transmission_hash)
+        transmission.transmission_hash = signing.sign(transmission.transmission_hash, private_key)
 
     else:
-        transmission.transmission_hash = signing.sign(private_key, transmission.transmission_hash)
+        transmission.transmission_hash = signing.sign(transmission.transmission_hash, private_key)
 
     return transmission
 
