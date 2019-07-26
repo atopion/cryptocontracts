@@ -196,11 +196,11 @@ class Peer:
                 elif i == "clients":
                     p = self.get_connected_peers()
                     print(p)
-                elif i == "sync":
+                elif i == "sync":   # start synchronization process
                     if self.cb_start_sync is not None:
                         print("{}: Starting synchronization...".format(self.get_time()))
                         self.cb_start_sync()
-                elif i == "list":   # display the current chain i
+                elif i == "list":   # display the current chain
                     if self.cb_list_chain is not None:
                         self.cb_list_chain()
                 elif i == "host":
@@ -220,43 +220,52 @@ class Peer:
     def connect_to_all(self):
         """ Connect to all peers in the network
         
-        Function is called after host gets addresses from the IP server after starting.
+        Function is called after host gets addresses from the IP server.
+        If system is used in same LAN or on same computer it is checked 
+        that this host only connects to addresses in that scope.
         """
         
-        host_net = self.host_addr[0].split(".")
+        host_net = self.host_addr[0].split(".")     # IP address of this host
         
         print("{}: Starting to connect to all peers in the net \n".format(self.get_time()))
         for peer in self.active_connectable_addresses:
             if self.scope == "internal" or self.scope == "localhost":
                 peer_net = peer[0].split(".")
-                if  (peer_net[0] == host_net[0]):   # not in same LAN
+                if  (peer_net[0] == host_net[0]):   # check if peers are in same LAN
                     self.create_new_connection(peer)
             else:
                 self.create_new_connection(peer)                
     
     def connect_to_net(self):
-        """ Establishes connection to the server peer
+        """ Start performing actions and connect to the network
         
-        Sets up a socket and connects to the server peer. A new thread is started
-        that runs the command_handler function for user input handling.
-        Data that is received is checked for special meaning by prefixes.
-        If no prefix is found, it is considered a message and printed out.
+        A new thread is started that runs the command_handler function
+        for user input handling. A socket is created listening for connections.
+        Another thread is created enabling the communication to the GUI.
+        The IP address and the port number of this host are added to IP server.
+        Moreover, the addresses of the active nodes in the network are requested from the IP server.
+        Next, connections to all active peers are established and a periodically refreshing of the 
+        active peers in the network is set up. Lastly, the main thread is locked to keep this
+        system running and avoid looping.
         """
         
+        # start command handler for user input
         command_thread = threading.Thread(target=self.command_handler)
         command_thread.daemon = True
         command_thread.start()
         
+        # start to accept connections
         server_thread = threading.Thread(target=self.listen_for_connections)
         server_thread.daemon = True
         server_thread.start()
         
+        # prepare for interaction with GUI for adding a document to the chain
         gui_thread = threading.Thread(target=self.gui_handler)
         gui_thread.daemon = True
         gui_thread.start()
         
         time.sleep(1)    # so server_thread has time to bind socket and assign port
-        self.set_host_addr()
+        self.set_host_addr()    # set IP address and port number of this peer
         
         if self.output == "debug":
             print("{}: Host address: {}".format(self.get_time(),self.host_addr))
@@ -266,24 +275,25 @@ class Peer:
             if self.output == "debug":
                 print("{}: Using internal mode".format(self.get_time()))
                 
-        elif self.scope == "localhost":
+        elif self.scope == "localhost":     # For running multiple peers on same computer (only for testing purpose)
             ip_server.add_self_internal(*self.host_addr)
             if self.output == "debug":
                 print("{}: Starting network on localhost".format(self.get_time()))
                 
         else:
-            ip_server.add_self(self.port)
+            ip_server.add_self(self.port)   # add port number for incoming connections to IP server
             
         print("{}: Host address added to IP Server".format(self.get_time()))
         print("{}: Host now accepts connections".format(self.get_time()))
         
-        self.active_connectable_addresses = self.get_peers_from_ip_server()
+        self.active_connectable_addresses = self.get_peers_from_ip_server()     # Pull active peer addresses from IP server
         if self.output == "debug":
             print("{}: Pulling active nodes from IP server".format(self.get_time()))
             print("{}: Active nodes in the network: {}".format(self.get_time(),self.active_connectable_addresses))
         
-        self.connect_to_all()
+        self.connect_to_all()   # establish connection to every active node in the network
 
+        # periodically aks for current active addresses at IP server
         refreshing_thread = threading.Thread(target=self.refresh_connections)
         refreshing_thread.daemon = True
         refreshing_thread.start()
@@ -294,7 +304,7 @@ class Peer:
         """ Creates a new connection to a specified address
 
         A new socket is created. Over that a connecetion to the passed address is established
-        The connection is managed in a separate thread. If connection not possible print notification.
+        The connection is managed in a separate thread. If connection is not possible print notification.
 
         Parameters
         ----------
@@ -307,14 +317,14 @@ class Peer:
            a variable stating if connection was succesfully created
         """
 
-        existing = False
-        own = False
+        existing = False    # indicate if already connected to addr
+        own = False     # indicate if addr is its own
         for peer in self.server_peers:
             if (peer[0] == addr[0] and int(peer[1]) == int(addr[1])):
-                existing = True
+                existing = True     # already connected to addr
             
         if addr[0] == self.host_addr[0] and int(addr[1]) == int(self.host_addr[1]):
-                own = True
+                own = True  # addr is own address
                 
         connected = False
         if not (existing or own):
@@ -325,10 +335,12 @@ class Peer:
                 connecting_thread.daemon = True
                 connecting_thread.start()
                 connecting_thread.join(timeout=5)  # if not able to connect after certain amout of time, terminate thread
-                existing = False
                 for peer in self.server_peers:
+                    # if addr is in list connection was successful
                     if (peer[0] == addr[0] and int(peer[1]) == int(addr[1])):
                         existing = True
+                        break
+                # if addr is not in list, connection failed
                 if not existing:
                     if self.output == "debug":
                         print("{}: Could not connect to {}:{} due to a timeout".format(self.get_time(),addr[0],str(addr[1])))
@@ -346,15 +358,19 @@ class Peer:
         Parameters
         ----------
         addr : (str,int)
-            tuple containing IP address and port number
+            a tuple containing IP address and port number
         """
+        
         connected = False
         try:
+            # create socket and connect to address
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(addr)
-            connected = True
+            connected = True    # connection was successful
+        # several reasons for connection failure
         except (ConnectionRefusedError, TimeoutError, BlockingIOError, OSError):
             connected = False
+        # After succes add socket and addr in lists and maintain connections
         if connected:
             self.server_peers.append(addr)
             self.client_sockets.append(sock)
@@ -364,40 +380,47 @@ class Peer:
             print("{}: Connected to {}:{} \n".format(self.get_time(),addr[0], str(addr[1])))
         
     def disconnect_from_net(self):
-        """Disconnects from the network/server peer
+        """Disconnects from the network
         
-        The socket is shutdown and closed which causes a disconnection.
+        Own address is removed from IP server
+        The sockets used for outgoing connections
+        are shutdown and closed which causes a disconnection.
+        The connection to the GUI is cut and the 
+        main thread is unlocked causing the program to end.
         """
 
-        ip_server.delete(self.host_addr[0])
+        ip_server.delete(self.host_addr[0])     # remove own address from IP server
 
-        self.lock.release()     #unlock main thread
-        
+        # close sockets for outgoing connections
         for sock in self.client_sockets:
             sock.shutdown(socket.SHUT_RDWR)
             sock.close()
         
+        # close socket for incoming connections. Catch error occuring if program ended before socket created
         try:
             self.sock_server.shutdown(socket.SHUT_RDWR)
             self.sock_server.close()
         except OSError:
             pass
         
+        # close connection to GUI. Catch error occuring if program before socket created
         try:
             self.gui_socket.shutdown(socket.SHUT_RDWR)
             self.gui_socket.close()
         except OSError:
             pass
         
+        self.lock.release()     #unlock main thread
+        
     def get_active_connectable_addresses(self):
-        """ Returns the list of all peers currently connected to the net/server peer with their port numbers to connect to
+        """ Returns the list of all peers currently active in the network with their addresses to connect to
 
         The peer IP addresses and port numbers are taken from the object variable active_connectable_addresses and are joined in a String
 
         Returns
         -------
         string
-            a string representing the IP addresses of the currently connected peers
+            a string representing the addresses of the currently connected peers
         """
 
         p = ""
@@ -413,12 +436,12 @@ class Peer:
     def get_connected_peers(self):
         """ Returns the list of all peers currently connected to the this host
         
-        The peer IP addresses are taken from the object variable activePeer and are joined in a String
+        The peer IP addresses are taken from the object variable connected_peers and are joined in a String
         
         Returns
         -------
         string
-            a string representing the IP addresses of the currently connected peers
+            a string representing the addresses of the currently connected peers
         """
         
         p = ""
@@ -437,15 +460,16 @@ class Peer:
         Returns
         -------
         peer_addr : list of (str,int)
-            List of IP addresses and ports of the active nodes
+            a list of IP addresses and ports of the active nodes
         """
         
-        online_peers = ip_server.get_all()
+        online_peers = ip_server.get_all()  # pull addresses from IP server
         peer_addr = []
+        # bring into tuple format
         for peer in online_peers:
             ip = peer["ip"]
             port = int(peer["port"])
-            peer_addr.append((ip,port))
+            peer_addr.append((ip,port)) 
             
         return peer_addr
 
@@ -469,12 +493,15 @@ class Peer:
         return p
     
     def get_time(self):
-        """ Returns the current time
+        """ Returns the current local time
+        
+        Only used for print statements,
+        not related to timestamp in blockchain
         
         Returns
         -------
         time : float
-            the current time
+            the current local time
         """
         
         time = datetime.datetime.now().time()
@@ -482,7 +509,16 @@ class Peer:
         return time
     
     def gui_handler(self):
+        """ Handels connection to the GUI
         
+        A dedicated socket is created to establish a connection.
+        This way the actions for adding a new block that was created over
+        the GUI are performed. This architecture is necessary because
+        only one process can access the database. Therefore, the GUI
+        requests the head of the chain and adds new blocks over this class.
+        """
+        
+        # create socket with predefined port and address in config file
         self.gui_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         addr = config.get("gui", "addr")
         port = int(config.get("gui", "port"))
@@ -497,6 +533,7 @@ class Peer:
             
             while True:
                 try:
+                    # receive commands from GUI
                     data = gui_conn.recv(4096)
                     if not data:
                         if self.output == "debug":
@@ -508,131 +545,138 @@ class Peer:
                         print("{}: From GUI received {}".format(self.get_time(),data))
                     
                     data = str(data, "utf-8")
-                    print("data: ", data)
                     mode = int(bytes(data[0], "utf-8").hex()[0:2])
-                    print("mode: ", mode)
                     content = data[1:]
-                    print("content: ", content)
                     
+                    # request for last transmission hash in chain alias head
                     if mode == 11:
                         if self.output == "debug":
-                            print("{}: Received chain request from GUI".format(self.get_time()))
-                        head = storage.get_head()
-                        gui_conn.send(b'\x21' + bytes(json.dumps(head), "utf-8"))
+                            print("{}: Received head of chain request from GUI".format(self.get_time()))
+                        head = storage.get_head()   # get head from storage
+                        gui_conn.send(b'\x21' + bytes(json.dumps(head), "utf-8"))   # send head in json format
                         if self.output == "debug":
                             print("{}: Sent head of chain to GUI".format(self.get_time()))
                             
+                    # request for adding a new block to the chain       
                     if mode == 12:
                         if self.output == "debug":
                             print("{}: Received document upload request from GUI".format(self.get_time()))
-                        content = Transmission.from_json(content)
-                        print("content: ", content)
-                        storage.put_block(content)  
-                        gui_conn.send(b'\x22')
+                        content = Transmission.from_json(content)   # convert to json format
+                        storage.put_block(content)  # add to local chain  
+                        gui_conn.send(b'\x22')  # send acknowledgement to GUI 
+                        # Publish block to the network
                         if self.cb_start_sync is not None:
                             print("{}: Starting synchronization...".format(self.get_time()))
                             self.cb_start_sync()
-                    
                 
+                # GUI disconnected not ordinary
                 except ConnectionResetError or ConnectionAbortedError:
                     if self.output == "debug":
                         print("{}: Lost connection to GUI".format(self.get_time()))
 
     def incoming_connection_handler(self, conn, address):
-        """ Manages connections to other peers
+        """ Manages incoming connections from other peers
 
         It is constantly waited for incoming data. The data is a byte stream.
-        The data sent by a client is distributed to all the other ones.
-        After a connection has been canceled, the new connection list is sent to all the active peers in the network.
+        
         
         parameters:
         -----------
-        conn : connection of specific peer
-        addr : IP address of specific peer
+        conn : connection object
+            connection of specific peer
+        addr : (str, int)
+            a tuple of the IP address and the port number of specific peer
         """
-
-        # TODO think about if this method should wait for receiving data
 
         while True:
             try:
-
+                # wait for receiving data
                 data = conn.recv(4096)
 
+                # peer disconnected
                 if not data:
                     if self.output == "debug":
                         print("{}: {}:{} disconnected \n".format(self.get_time(),str(address[0]),str(address[1])))
                     conn.close()
                     try:
+                        # remove connnection object from list
                         self.connections.remove(conn)
                         self.clean_connections()
-                    # TODO find out why Error is raised
                     except ValueError:
                         if self.output == "debug":
                             print("Could not remove connection from connections \n")
 
                     try:
+                        # remove address from list
                         self.connected_peers.remove(address)
                         self.clean_connected_peers()
                     except ValueError:
                         if self.output == "debug":
                             print("Could not remove address {}:{} from connected peers \n".format(address[0],str(address[1])))
-
-#                    self.send_offline_peer(address) # notify connected peers that one peer went offline
                     break
+                
                 if self.output == "debug":
                     print("{}: From {}:{} received {} over incoming connection handler \n".format(self.get_time(),address[0],str(address[1]),data))
-
-
+                    
+                # if messages are comming so close together that multiple of them are considered as one, the postfix ! indicates this
                 inputs = str(data, "utf-8").split("!")
 
+                # check each message individually
                 for msg in inputs:
                     if msg != "":
-                        mode = int(bytes(msg, "utf-8").hex()[0:2])
-#                        print("part message: ", msg)
+                        mode = int(bytes(msg, "utf-8").hex()[0:2])  # prefix indicating purpose of message
                         if self.output == "debug":
                             print("{}: MODE {}: ".format(self.get_time(), mode))
-                        core.network_log("RECEIVED \\x", mode, " from ", address[0])
+                        core.network_log("RECEIVED \\x", mode, " from ", address[0])    # log statement
+                        
                         # look for specific prefix indicating the list of active peers
-
+                        # for matching address of incoming data and connection object to send data
                         if mode == 15:
-                            # for matching address of incoming data and connection object to send data 
                             rec_data = msg[1:]
                             rec_peer = rec_data.split(":")
+                            # create connection to this address
                             connected = self.create_new_connection((rec_peer[0],int(rec_peer[1])))
-                            self.address_connection_pairs.update({rec_data:conn})
+                            self.address_connection_pairs.update({rec_data:conn})   # match connection from and to this peer
                             if self.output == "debug":
                                 print("{}: Address-connection pair added".format(self.get_time()))
                             if connected:
+                                # connection successful
                                 self.active_connectable_addresses.append((rec_peer[0],rec_peer[1]))
 
+                        # received a block
                         elif mode == 20:
                             print("{}: Received transmission from {}:{}".format(self.get_time(), address[0], int(address[1])))
                             self.cb_receive_message(Transmission.from_json(msg[1:]))
 
+                        # Synchronization request
                         elif mode == 31:
-                                # Synchronization request
                                 print("{}: Received synchronization request from {}:{}".format(self.get_time(), address[0], int(address[1])))
                                 if self.cb_send_sync_message is not None:
-                                    self.cb_send_sync_message(conn)
+                                    self.cb_send_sync_message(conn)     # send head of own chain to requester
 
+                        # Synchronization answer
                         elif mode == 32:
-                            # Synchronization answer
                             print("{}: Received synchronization answer from {}:{}".format(self.get_time(), address[0], int(address[1])))
                             data = json.loads(str(msg[1:]))
                             data["conn"] = conn
                             self.synchronization_request_answers.append(data)
-                            # TODO multiple connections
                             if len(self.synchronization_request_answers) == len(self.connected_peers):
+                                # already have same chain
                                 self.synchronization_finished_event.set()
-                            #self.synchronization_finished_event.set()
 
+                        # Subchain request
                         elif mode == 33:
-                            # Subchain request
                             print("{}: Received subchain request from {}:{}".format(self.get_time(), address[0], int(address[1])))
                             hash = str(msg[1:])
                             if self.cb_send_subchain_message is not None:
-                                self.cb_send_subchain_message(conn, hash)
-
+                                self.cb_send_subchain_message(conn, hash)   # send subchain that is coming afterreceived hash
+                                
+                                
+####################### continue commenting here #########################################################################################
+                                
+                                
+                                
+                        # received subschain 
                         elif mode == 34 or mode == 35:
                             print("{}: Received subchain from {}:{}".format(self.get_time(), address[0], int(address[1])))
                             try:
