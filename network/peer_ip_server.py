@@ -574,6 +574,7 @@ class Peer:
         
         # create socket with predefined port and address in config file
         self.gui_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.gui_socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)    # reuse socket
         addr = config.get("gui", "addr")
         port = int(config.get("gui", "port"))
         self.gui_socket.bind((addr, port))
@@ -805,18 +806,22 @@ class Peer:
                 break
             except OSError:
                 if self.output == "debug":
-                    print("{}: Randomly chosen port number already taken, choosing different number")
+                    print("{}: Randomly chosen port number already taken, choosing different number".format(self.get_time()))
         
         while True:
-            conn, addr = self.sock_server.accept()  # accept incoming connection request
-            thread = threading.Thread(target=self.incoming_connection_handler, args=(conn,addr))    # handle input from client in dedicated thread
-            thread.daemon = True
-            thread.start()
-            self.connected_peers.append(addr)   # save address
-            self.connections.append(conn)   # save connection object
-            self.clean_connected_peers()    # remove duplicates
-            print("{}: {}:{} connected \n".format(self.get_time(),str(addr[0]),str(addr[1])))
-    
+            try:
+                conn, addr = self.sock_server.accept()  # accept incoming connection request
+                thread = threading.Thread(target=self.incoming_connection_handler, args=(conn,addr))    # handle input from client in dedicated thread
+                thread.daemon = True
+                thread.start()
+                self.connected_peers.append(addr)   # save address
+                self.connections.append(conn)   # save connection object
+                self.clean_connected_peers()    # remove duplicates
+                print("{}: {}:{} connected \n".format(self.get_time(),str(addr[0]),str(addr[1])))
+            except OSError:
+                if self.output == "debug":
+                    print("{}: Issues with server socket".format(self.get_time()))
+                
     def outgoing_connection_handler(self, address, sock):
         """ Manages outgoing connections to other peers
 
@@ -863,9 +868,12 @@ class Peer:
                         if self.output == "debug":
                             print("{}: Could not remove address from address connection pair dict".format(self.get_time()))
 
-                    self.client_sockets.remove(sock)
-                    sock.shutdown(socket.SHUT_RDWR)
-                    sock.close()
+                    try:
+                        self.client_sockets.remove(sock)
+                        sock.shutdown(socket.SHUT_RDWR)
+                        sock.close()
+                    except OSError:
+                        print("{}: socket could not be closed properly".format(self.get_time()))
                     break
                 
                 if self.output == "debug":
