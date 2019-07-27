@@ -577,7 +577,8 @@ class Peer:
     def incoming_connection_handler(self, conn, address):
         """ Manages incoming connections from other peers
 
-        It is constantly waited for incoming data. The data is a byte stream.
+        It is constantly waited for incoming data in a byte stream. 
+        The data is checked for prefixes and processed accordingly.
         
         
         parameters:
@@ -671,33 +672,29 @@ class Peer:
                             if self.cb_send_subchain_message is not None:
                                 self.cb_send_subchain_message(conn, hash)   # send subchain that is coming afterreceived hash
                                 
-                                
-####################### continue commenting here #########################################################################################
-                                
-                                
-                                
                         # received subschain 
                         elif mode == 34 or mode == 35:
                             print("{}: Received subchain from {}:{}".format(self.get_time(), address[0], int(address[1])))
                             try:
-                                rec_data = msg[1:].split("&")
+                                rec_data = msg[1:].split("&")   # indicator & separates length and actual message of subchain
                                 length = int(rec_data[0])
                                 all_data = rec_data[1]
-                                while len(all_data) < length:
+                                while len(all_data) < length:   # if message longer than buffersize keep receiving until message complete
                                     to_read = length - len(all_data)
                                     all_data += str(conn.recv(4096 if to_read > 4096 else to_read), "utf-8")
 
+                                # Subchain answer
                                 if mode == 34:
-                                    # Subchain answer
+                                    # start adding to chain process
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\", ""))
+                                        all_data.replace("\\", ""))     # bring into right format
                                     self.synchronization_subchain_event.set()
 
+                                # synchronizing node has more transmissions than the synchronizing partners
                                 else:
-                                    # synchronizing node has more transmissions than the synchronizing partners
                                     self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\", ""))
-                                    if self.cb_receive_subchain_message is not None:
+                                        all_data.replace("\\", ""))     # bring into right format
+                                    if self.cb_receive_subchain_message is not None:    # start synchronizing
                                         self.cb_receive_subchain_message(self.synchronization_chain)
 
                             except Exception as e:
@@ -705,23 +702,19 @@ class Peer:
                                     print("{}: Could not receive subchain".format(self.get_time()))
                                     print("{}: Reason: {} \n".format(self.get_time(),e))
 
-                            # if no prefix consider data a message and print it
+                        # if no prefix consider data a message and print it
                         else:
                             print("{}: Message from {}:{} : {}".format(self.get_time(),address[0], int(address[1]),msg))
 
-                            """elif mode == 34:
-                                # Subchain answer
-                                self.synchronization_chain = core.core.Transmission.list_from_json(str(msg[1:]).replace("\\\\", "\\"))
-                                self.synchronization_subchain_event.set()
-                            # if no prefix consider data a message and print it"""
-
+            # connection closed unordinarily
             except ConnectionResetError or ConnectionAbortedError:
                 if self.output == "debug":
                     print("{}: {}:{} Connection impolitely closed.".format(self.get_time(), address[0],str(address[1])))
+                    
+                # remove address and connection from lists
                 try:
                     self.connections.remove(conn)
                     self.clean_connections()
-                # TODO find out why Error is raised
                 except ValueError:
                     if self.output == "debug":
                         print("Could not remove connection from connections \n")
@@ -733,99 +726,109 @@ class Peer:
                     if self.output == "debug":
                         print("Could not remove address {}:{} from connected peers \n".format(address[0],str(address[1])))
 
-                except ValueError:
-                    if self.output == "debug":
-                        print("Could not remove address {}:{} from active peers \n".format(address[0],str(address[1])))
-
     def listen_for_connections(self):
-        """ Makes sure that peers can connect to this host.
+        """ Start socket for accepting incoming connections
         
-        Creates an own thread for each incoming connection.
+        The port is chosen based on scipe of the system.
+        For odinary usage (external mode) the port number is 
+        specified in the configuration fule. The socket is then
+        created and starts listening for incoming connections.
+        The conncetion requests are excepted and each connetion handled in 
+        a dedicated thread.
         """
+        
         while True:
+            # check if port for localhost mode is alredy used
             try:
                 self.sock_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.sock_server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-                if self.scope == "localhost" or self.scope == "internal":
+                self.sock_server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)    # reuse socket
+                if self.scope == "localhost" or self.scope == "internal":   # if starting multiple peers on same computer take random port (only for testing)
                     self.port = random.randint(10001,15000)
                 if self.scope == "external":
                     self.port = int(config.get("server", "port"))    # get port from config file
-#                upnp.add_port(self.port)
                 self.sock_server.bind(('0.0.0.0',self.port))
-                self.sock_server.listen(1)
-                
+                self.sock_server.listen(1)  # start listening for incoming connections
                 break
-            
             except OSError:
                 if self.output == "debug":
-                    print("{}: Randomly chosen port numer already taken, choosing different number")
+                    print("{}: Randomly chosen port number already taken, choosing different number")
         
         while True:
-            conn, addr = self.sock_server.accept()
-            thread = threading.Thread(target=self.incoming_connection_handler, args=(conn,addr))
+            conn, addr = self.sock_server.accept()  # accept incoming connection request
+            thread = threading.Thread(target=self.incoming_connection_handler, args=(conn,addr))    # handle input from client in dedicated thread
             thread.daemon = True
             thread.start()
-            self.connected_peers.append(addr)
-            self.connections.append(conn)
-            self.clean_connected_peers()
+            self.connected_peers.append(addr)   # save address
+            self.connections.append(conn)   # save connection object
+            self.clean_connected_peers()    # remove duplicates
             print("{}: {}:{} connected \n".format(self.get_time(),str(addr[0]),str(addr[1])))
     
     def outgoing_connection_handler(self, address, sock):
-        """ Maintains outgoing connection from this peer to another node in the net
+        """ Manages outgoing connections to other peers
 
-        If the connection to the server node corrupts, it is looked for another node to connect to
+        It is constantly waited for incoming data. The data is a byte stream.
+        
+        
+        parameters:
+        -----------
+        conn : connection object
+            connection of specific peer
+        addr : (str, int)
+            a tuple of the IP address and the port number of specific peer
         """
 
         self.send_port(address, sock)   # for matching of address and connection
 
         while True:
             try:
-                
+                # wait for incoming data
                 data = sock.recv(4096)
+                
+                # connection closed
                 if not data:
+                    
+                    # remove address from list
                     try:
                         self.server_peers.remove(address)
                     except:
                         if self.output == "debug":
                             print("{}: Could not remove server peer: {}:{} from server list".format(self.get_time(), address[0],str(address[1])))
-
+                            
+                    # remove address from list
                     try:
                         self.active_connectable_addresses.remove(address)
                     except:
                         if self.output == "debug":
                             print("{}: Could not remove server peer: {}:{} from active connectable address list".format(self.get_time(), address[0],str(address[1])))
 
+                    # remove connection pairs from list
                     try:
                         self.address_connection_pairs.pop(str(address[0]+":"+str(address[1])))
-                    except Exception as e:
+                    except Exception:
                         if self.output == "debug":
                             print("{}: Could not remove address from address connection pair dict".format(self.get_time()))
-                            print("Reason: ",e)
-
-#                    self.send_offline_connectable_address(address)  # notify other peers that one peer went offline
 
                     self.client_sockets.remove(sock)
                     sock.shutdown(socket.SHUT_RDWR)
                     sock.close()
-
                     break
+                
                 if self.output == "debug":
                     print("{}: From {}:{} received {}".format(self.get_time(),address[0],str(address[1]),data))
 
+
+                 # if messages are coming so close together that multiple of them are considered as one, the postfix ! indicates this
                 inputs = str(data, "utf-8").split("!")
 
+                # check each message individually
                 for msg in inputs:
                     if msg != "":
-                        try:
-                            mode = int(bytes(msg, "utf-8").hex()[0:2])
-                        except ValueError:
-                            mode = ""
-#                        print("part message: ", msg)
+                        mode = int(bytes(msg, "utf-8").hex()[0:2])  # prefix indicating purpose of message
                         if self.output == "debug":
-                            print("{}: MODE {}: ".format(self.get_time(),mode))
-                        core.network_log("RECEIVED \\x", mode, " from ", address[0])
-                        # look for specific prefix indicating the list of active peers
+                            print("{}: MODE {}: ".format(self.get_time(), mode))
+                        core.network_log("RECEIVED \\x", mode, " from ", address[0])    # log statement
 
+                        # look for specific prefix indicating the list of active peers
 #                        elif mode == 14:
 #                            # notification that connectable address not available anymore
 #                            offline_peer = msg[1:].split(":")
@@ -835,67 +838,70 @@ class Peer:
 ##                                    self.send_offline_connectable_address(addr)
 #                                    break   # considering that no redundant addresses in list
                         
-                        if mode == 20:
-                            print("{}: Received transmission from {}:{}".format(self.get_time(), address[0], int(address[1])))
-                            self.cb_receive_message(Transmission.from_json(msg[1:]))
+#                        if mode == 20:
+#                            print("{}: Received transmission from {}:{}".format(self.get_time(), address[0], int(address[1])))
+#                            self.cb_receive_message(Transmission.from_json(msg[1:]))
+#
+#                        elif mode == 31:
+#                            # Synchronization request
+#                            print("{}: Received synchronization request from {}:{}".format(self.get_time(), address[0], int(address[1])))
+#                            if self.cb_send_sync_message is not None:
+#                                self.cb_send_sync_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))])
+#
+#                        elif mode == 32:
+#                            # Synchronization answer
+#                            print("{}: Received synchronization answer from {}:{}".format(self.get_time(), address[0], int(address[1])))
+#                            data = json.loads(str(msg[1:]))
+#                            data["conn"] = self.address_connection_pairs[str(address[0]+":"+str(address[1]))]
+#                            self.synchronization_request_answers.append(data)
+#                            # TODO multiple connections
+#                            if len(self.synchronization_request_answers) == len(self.connected_peers):
+#                                self.synchronization_finished_event.set()
+#                            #self.synchronization_finished_event.set()
+#
+#                        elif mode == 33:
+#                            # Subchain request
+#                            print("{}: Received subchain request from {}:{}".format(self.get_time(), address[0], int(address[1])))
+#                            hash = str(msg[1:])
+#                            if self.cb_send_subchain_message is not None:
+#                                self.cb_send_subchain_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))], hash)
+#
+#                        elif mode == 34 or mode == 35:
+#                            print("{}: Received subchain from {}:{}".format(self.get_time(), address[0], int(address[1])))
+#                            try:
+#                                rec_data = msg[1:].split("&")
+#                                length = int(rec_data[0])
+#                                all_data = rec_data[1]
+#                                while len(all_data) < length:
+#                                    to_read = length - len(all_data)
+#                                    all_data += str(sock.recv(4096 if to_read > 4096 else to_read), "utf-8")
+#
+#                                if mode == 34:
+#                                    # Subchain answer
+#                                    self.synchronization_chain = core.core.Transmission.list_from_json(
+#                                        all_data.replace("\\", ""))
+#                                    self.synchronization_subchain_event.set()
+#
+#                                else:
+#                                    # synchronizing node has more transmissions than the synchronizing partners
+#                                    self.synchronization_chain = core.core.Transmission.list_from_json(
+#                                        all_data.replace("\\", ""))
+#                                    self.cb_receive_subchain_message(self.synchronization_chain)
+#
+#                            except Exception as e:
+#                                print("{}: Could not receive subchain".format(self.get_time()))
+#                                print("{}: Reason: {} \n ".format(self.get_time(),e))
+#
+#                        # if no prefix consider data a message and print it
+#                        else:
+#                            print("{}: Message from: {}:{} : {} \n".format(self.get_time(), address[0], int(address[1]),msg))
 
-                        elif mode == 31:
-                            # Synchronization request
-                            print("{}: Received synchronization request from {}:{}".format(self.get_time(), address[0], int(address[1])))
-                            if self.cb_send_sync_message is not None:
-                                self.cb_send_sync_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))])
-
-                        elif mode == 32:
-                            # Synchronization answer
-                            print("{}: Received synchronization answer from {}:{}".format(self.get_time(), address[0], int(address[1])))
-                            data = json.loads(str(msg[1:]))
-                            data["conn"] = self.address_connection_pairs[str(address[0]+":"+str(address[1]))]
-                            self.synchronization_request_answers.append(data)
-                            # TODO multiple connections
-                            if len(self.synchronization_request_answers) == len(self.connected_peers):
-                                self.synchronization_finished_event.set()
-                            #self.synchronization_finished_event.set()
-
-                        elif mode == 33:
-                            # Subchain request
-                            print("{}: Received subchain request from {}:{}".format(self.get_time(), address[0], int(address[1])))
-                            hash = str(msg[1:])
-                            if self.cb_send_subchain_message is not None:
-                                self.cb_send_subchain_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))], hash)
-
-                        elif mode == 34 or mode == 35:
-                            print("{}: Received subchain from {}:{}".format(self.get_time(), address[0], int(address[1])))
-                            try:
-                                rec_data = msg[1:].split("&")
-                                length = int(rec_data[0])
-                                all_data = rec_data[1]
-                                while len(all_data) < length:
-                                    to_read = length - len(all_data)
-                                    all_data += str(sock.recv(4096 if to_read > 4096 else to_read), "utf-8")
-
-                                if mode == 34:
-                                    # Subchain answer
-                                    self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\", ""))
-                                    self.synchronization_subchain_event.set()
-
-                                else:
-                                    # synchronizing node has more transmissions than the synchronizing partners
-                                    self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\", ""))
-                                    self.cb_receive_subchain_message(self.synchronization_chain)
-
-                            except Exception as e:
-                                print("{}: Could not receive subchain".format(self.get_time()))
-                                print("{}: Reason: {} \n ".format(self.get_time(),e))
-
-                        # if no prefix consider data a message and print it
-                        else:
-                            print("{}: Message from: {}:{} : {} \n".format(self.get_time(), address[0], int(address[1]),msg))
-
+            # connection closed unordinarily
             except ConnectionResetError or ConnectionAbortedError:
                 if self.output == "debug":
                     print("{}: {}:{} impolitely disconnected.".format(self.get_time(), address[0],str(address[1])))
+                    
+                # remove address and connection pair from list
                 try:
                     self.server_peers.remove(address)
                 except:
@@ -908,10 +914,12 @@ class Peer:
                         print("{}: Could not remove server peer: {}:{} from active connectable address list".format(self.get_time(), address[0],str(address[1])))
                 try:
                     self.address_connection_pairs.pop(str(address[0]+":"+str(address[1])))
-                except Exception as e:
+                except Exception:
                     if self.output == "debug":
                         print("{}: Could not remove address from address connection pair dict".format(self.get_time()))
-                        print("Reason: ",e)
+
+
+######################################### continue here commenting #######################################################################
 
     def refresh_connections(self):
         """ Gets the current active nodes in the network in a specific frequency"""
