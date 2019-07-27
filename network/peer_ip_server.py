@@ -26,7 +26,8 @@ from storage import config, storage
 
 
 class Peer:
-    """ A class representing a Peer of the network which connects to the server
+    """ A class representing a Peer of the peer-to-peer network 
+        for the blockchain project cryptocontracts
     
     Attributes
     ----------
@@ -59,24 +60,62 @@ class Peer:
         
     Methods
     -------
+    clean_active_connectable_addresses()
+        Removes duplicates from list containing active connectable addresses in the net
+    clean_connected_peers()
+        Removes duplicates from list containing connected peers to this host
+    clean_connections()
+        Removes duplicates from list containing connections to this host
     command_handler()
         Takes care of the user input
+    connect_to_all()
+        Connect to all peers in the network
+    connect_to_net()
+        Start performing system actions and connect to the network
+    create_new_connection(addr)
+        Creates a new connection to a specified address
+    disconnect_from_net()
+        Disconnects from the network and ends the program
+    establisih_connetion()
+        Esablishes a connection to the peer represented in addr
+    get_active_connectable_addresses()7
+        Returns the list of all active peer addresses to connect to
+    get_connected_peers()
+        Returns the list of all active peers connected to the this host
+    get_host_addr()
+        Returns the IP address of this host
+    get_peers_from_ip_server()
+        Gets the addresses of the active nodes in the network from the IP server
+    get_server_peers()
+        Returns addresses of peers that this peer is connected to
+    get_time()
+        Returns the current local time
+    gui_handler()
+        Handels connection to the GUI
     incoming_connection_handler(conn, addr)
         Manages connections to other peers
-    connect_to_net()
-        Establishes connection to the server peer
-    disconnect_from_net()
-        Disconnects from the network/server peer
-    get_connected_peers()
-        Returns the list of all peers currently connected to the this host
-    set_host_addr()
-        Sets a variable for the IP address and the port of this host
     listen_for_connections()
         Makes sure that peers can connect to this host
-    outgoing_connection_handler()
+    outgoing_connection_handler(address, sock)
         Maintains outgoing connection from this peer to another node in the net
-    request_graph(address)
-        Sends request for latest version of graph to peer specified in address
+    refresh_connections()
+        Pulls the current active peers in a specific period and connects to them
+    request_subchain(msg, hash)
+        Request specific subchain from all connected peer
+    send_n1_subchain(obj)
+        Send own subchain that is ahead of other peer to promote own chain
+    send_n2_subchain(conn, obj) 
+        Send own subchain to requester
+    send_port(address, socket)
+        Sends address with port number for establishing connection to this host
+    send_synchronize_request()
+        Send a synchronization request to all connected peers
+    send_sync_request_answer(conn, obj)
+        Send last transmission hash of own chain
+    send_transmission(transmission)
+        Send a block to all connected peers in the net
+    set_host_addr()
+        Sets the IP address and the port of this host
     """
     
     active_connectable_addresses = []   # addresses of active peers in the net to connect to
@@ -238,7 +277,7 @@ class Peer:
                 self.create_new_connection(peer)                
     
     def connect_to_net(self):
-        """ Start performing actions and connect to the network
+        """ Start performing system actions and connect to the network
         
         A new thread is started that runs the command_handler function
         for user input handling. A socket is created listening for connections.
@@ -350,38 +389,9 @@ class Peer:
                 print("{}: Could not connect to {}:{} \n Reason: {}".format(self.get_time(),addr[0],str(addr[1]),e))
 
         return connected
-
-    def establish_connection(self,addr):
-        """ Esablishes a connection to the peer represented in addr.
-        
-        Creates a socket and connects it to addr. Connection is handled in dedicated thread.
-        
-        Parameters
-        ----------
-        addr : (str,int)
-            a tuple containing IP address and port number
-        """
-        
-        connected = False
-        try:
-            # create socket and connect to address
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect(addr)
-            connected = True    # connection was successful
-        # several reasons for connection failure
-        except (ConnectionRefusedError, TimeoutError, BlockingIOError, OSError):
-            connected = False
-        # After succes add socket and addr in lists and maintain connections
-        if connected:
-            self.server_peers.append(addr)
-            self.client_sockets.append(sock)
-            thread = threading.Thread(target=self.outgoing_connection_handler, args=(addr,sock))
-            thread.daemon = True
-            thread.start()
-            print("{}: Connected to {}:{} \n".format(self.get_time(),addr[0], str(addr[1])))
-        
+    
     def disconnect_from_net(self):
-        """Disconnects from the network
+        """ Disconnects from the network and ends the program
         
         Own address is removed from IP server
         The sockets used for outgoing connections
@@ -412,9 +422,38 @@ class Peer:
             pass
         
         self.lock.release()     #unlock main thread
+
+    def establish_connection(self,addr):
+        """ Esablishes a connection to the peer represented in addr
+        
+        Creates a socket and connects it to addr. Connection is handled in dedicated thread.
+        
+        Parameters
+        ----------
+        addr : (str,int)
+            a tuple containing IP address and port number
+        """
+        
+        connected = False
+        try:
+            # create socket and connect to address
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect(addr)
+            connected = True    # connection was successful
+        # several reasons for connection failure
+        except (ConnectionRefusedError, TimeoutError, BlockingIOError, OSError):
+            connected = False
+        # After succes add socket and addr in lists and maintain connections
+        if connected:
+            self.server_peers.append(addr)
+            self.client_sockets.append(sock)
+            thread = threading.Thread(target=self.outgoing_connection_handler, args=(addr,sock))
+            thread.daemon = True
+            thread.start()
+            print("{}: Connected to {}:{} \n".format(self.get_time(),addr[0], str(addr[1])))
         
     def get_active_connectable_addresses(self):
-        """ Returns the list of all peers currently active in the network with their addresses to connect to
+        """ Returns the list of all active peer addresses to connect to
 
         The peer IP addresses and port numbers are taken from the object variable active_connectable_addresses and are joined in a String
 
@@ -435,7 +474,7 @@ class Peer:
         return p
 
     def get_connected_peers(self):
-        """ Returns the list of all peers currently connected to the this host
+        """ Returns the list of all active peers connected to the this host
         
         The peer IP addresses are taken from the object variable connected_peers and are joined in a String
         
@@ -456,7 +495,7 @@ class Peer:
         return p
     
     def get_host_addr(self):
-        """ Returns the IP address of this host.
+        """ Returns the IP address of this host
 
         Returns
         -------
@@ -470,7 +509,7 @@ class Peer:
         return (host_addr, self.port)
     
     def get_peers_from_ip_server(self):
-        """ Gets the addresses of the active nodes in the network from the IP Server.
+        """ Gets the addresses of the active nodes in the network from the IP server
         
         Returns
         -------
@@ -1009,91 +1048,6 @@ class Peer:
 #        if self.output == "debug":
 #            print("Notified connected peers that {} is offline".format(p))
 
-    def send_port(self, address, socket=None):
-        """ Sends address with port number for establishing connection to this host
-
-        Parameters
-        ----------
-        address : tuple (str,int)
-            IP address and port to send to
-        """
-
-        p = self.host_addr[0] + ":" + str(self.host_addr[1])
-
-        if socket:
-            socket.send(b'\x15' + bytes(p, "utf-8") + b'!')   # ! signals end of message
-            core.network_log("SEND \\x15 to ", socket)  # log statement
-        else:
-            address.send(b'\x15' + bytes(p, "utf-8") + b'!')
-            core.network_log("SEND \\x13 to ", address) # log statement
-        
-        if self.output == "debug":
-            print("{}: Own address sent to {}:{}".format(self.get_time(), address[0], str(address[1])))
-        
-    def set_host_addr(self):
-        """ Sets the IP address and the port of this host """
-    
-        # if using on same computer use random loopback address
-        # because IP server stores as key value pairs and overwrites if same address (only for testing)
-        if self.scope == "localhost":
-            num1 = random.randint(0,199)
-            num2 = random.randint(0,199)
-            num3 = random.randint(0,199)
-            host_addr = "127." + str(num1) + "." + str(num2) + "." + str(num3)
-        
-        # if using in same LAN use local IP
-        elif self.scope == "internal":
-            host_name = socket.gethostname()
-            host_addr = socket.gethostbyname(host_name)
-
-        else:
-            # get loating IP address of this host (only for testing)
-            host_addr = urllib.request.urlopen("https://api.zipixx.com/forwardedfor").read().decode("utf-8")
-
-        self.host_addr = (host_addr,self.port)  
-        
-    def send_synchronize_request(self):
-        """ Send a synchronization request to all connected peers
-        
-            Send request to all peers that this host is connected to
-            and wait for their answers. The other peers reply with the latest
-            transmission hash in their chain.
-            
-            Return
-            ------
-            res : list
-                a list of the last transmission hashes of all connected peers 
-        """
-        
-        # send request  to all connections
-        for conn in self.connections:
-            conn.send(b'\x31!')
-
-        WAIT_DUR = 30   # waiting duration in seconds
-
-        print("{}: Synchronization request sent".format(self.get_time()))
-        self.synchronization_finished_event.wait(WAIT_DUR)  # finish synchronization requesting process after specifinc time
-        res = self.synchronization_request_answers  # answers of all peers
-        self.synchronization_request_answers = []   # clear list
-        self.synchronization_finished_event = threading.Event()     # reset event
-        core.network_log("SEND \\x31 to ", [x for x in self.connections])   # log statement
-        return res
-    
-    def send_sync_request_answer(self, conn, obj):
-        """ Send last transmission hash of own chain 
-        
-        Parameters
-        ----------
-        conn: connection object 
-            a connection object of the connection to a specific peer
-        obj: str
-            transmission hash of latest block in the own chain
-        """
-        
-        conn.send(b'\x32' + bytes(json.dumps(obj), "utf-8"))    # send latest transmission hash to peer belonging to conn
-        print("{}: Synchronization request answer sent".format(self.get_time()))
-        core.network_log("SEND \\x32 to ", conn)    # log statement
-
     def request_subchain(self, msg, hash):
         """ Request specific subchain from all connected peer
             
@@ -1122,6 +1076,26 @@ class Peer:
         self.synchronization_subchain_event = threading.Event()     # reset event
         return self.synchronization_chain
 
+    def send_n1_subchain(self, obj):
+        """ Send own subchain that is ahead of other peer to promote own chain
+        
+        Transform chain object to json and then to bytes and add the length of 
+        the whole transformed chain and send it to all connected peers.
+        
+        Parameters
+        ----------
+        obj : str
+            the subchain that shall be send
+        """
+        
+        chain = bytes(Transmission.list_to_json(obj), "utf-8")
+        length = len(chain)
+        # send prefix, length of data and chain. & used for separation
+        for conn in self.connections:
+            conn.send(b'\x35' + bytes(str(length), "utf-8") + b'&' + chain)
+        print("{}: Subchain sent \n".format(self.get_time()))
+        core.network_log("SEND \\x35 to ", [x for x in self.connections])   # log statement
+        
     def send_n2_subchain(self, conn, obj):
         """ Send own subchain to requester 
         
@@ -1142,26 +1116,69 @@ class Peer:
         conn.send(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain)
         print("{}: Subchain sent \n".format(self.get_time()))
         core.network_log("SEND \\x34 to ", conn)    # log statement
-
-    def send_n1_subchain(self, obj):
-        """ Send own subchain that is ahead of other peer to promote own chain
         
-        Transform chain object to json and then to bytes and add the length of 
-        the whole transformed chain and send it to all connected peers.
+    def send_port(self, address, socket=None):
+        """ Sends address with port number for establishing connection to this host
+
+        Parameters
+        ----------
+        address : tuple (str,int)
+            IP address and port to send to
+        """
+
+        p = self.host_addr[0] + ":" + str(self.host_addr[1])
+
+        if socket:
+            socket.send(b'\x15' + bytes(p, "utf-8") + b'!')   # ! signals end of message
+            core.network_log("SEND \\x15 to ", socket)  # log statement
+        else:
+            address.send(b'\x15' + bytes(p, "utf-8") + b'!')
+            core.network_log("SEND \\x13 to ", address) # log statement
+        
+        if self.output == "debug":
+            print("{}: Own address sent to {}:{}".format(self.get_time(), address[0], str(address[1])))
+        
+    def send_synchronize_request(self):
+        """ Send a synchronization request to all connected peers
+        
+            Send request to all peers that this host is connected to
+            and wait for their answers. The other peers reply with the latest
+            transmission hash in their chain.
+            
+            Return
+            ------
+            res : list
+                a list of the last transmission hashes of all connected peers 
+        """
+        
+        # send request  to all connections
+        for conn in self.connections:
+            conn.send(b'\x31!')
+
+        WAIT_DUR = 30   # waiting duration in seconds
+
+        print("{}: Synchronization request sent".format(self.get_time()))
+        self.synchronization_finished_event.wait(WAIT_DUR)  # finish synchronization requesting process after specifinc time
+        res = self.synchronization_request_answers  # answers of all peers
+        self.synchronization_request_answers = []   # clear list
+        self.synchronization_finished_event = threading.Event()     # reset event
+        core.network_log("SEND \\x31 to ", [x for x in self.connections])   # log statement
+        return res
+        
+    def send_sync_request_answer(self, conn, obj):
+        """ Send last transmission hash of own chain 
         
         Parameters
         ----------
-        obj : str
-            the subchain that shall be send
+        conn: connection object 
+            a connection object of the connection to a specific peer
+        obj: str
+            transmission hash of latest block in the own chain
         """
         
-        chain = bytes(Transmission.list_to_json(obj), "utf-8")
-        length = len(chain)
-        # send prefix, length of data and chain. & used for separation
-        for conn in self.connections:
-            conn.send(b'\x35' + bytes(str(length), "utf-8") + b'&' + chain)
-        print("{}: Subchain sent \n".format(self.get_time()))
-        core.network_log("SEND \\x35 to ", [x for x in self.connections])   # log statement
+        conn.send(b'\x32' + bytes(json.dumps(obj), "utf-8"))    # send latest transmission hash to peer belonging to conn
+        print("{}: Synchronization request answer sent".format(self.get_time()))
+        core.network_log("SEND \\x32 to ", conn)    # log statement
 
     def send_transmission(self, transmission: Transmission):
         """ Send a block to all connected peers in the net
@@ -1177,5 +1194,28 @@ class Peer:
             conn.send(b'\x20' + bytes(json.dumps(transmission.to_json()), "utf-8"))
         print("{}: Transmission sent".format(self.get_time()))
         core.network_log("SEND \\x20 to ", [x for x in self.connections])   # log statement
+        
+    def set_host_addr(self):
+        """ Sets the IP address and the port of this host
+        """
+    
+        # if using on same computer use random loopback address
+        # because IP server stores as key value pairs and overwrites if same address (only for testing)
+        if self.scope == "localhost":
+            num1 = random.randint(0,199)
+            num2 = random.randint(0,199)
+            num3 = random.randint(0,199)
+            host_addr = "127." + str(num1) + "." + str(num2) + "." + str(num3)
+        
+        # if using in same LAN use local IP
+        elif self.scope == "internal":
+            host_name = socket.gethostname()
+            host_addr = socket.gethostbyname(host_name)
+
+        else:
+            # get loating IP address of this host (only for testing)
+            host_addr = urllib.request.urlopen("https://api.zipixx.com/forwardedfor").read().decode("utf-8")
+
+        self.host_addr = (host_addr,self.port)  
 
 
