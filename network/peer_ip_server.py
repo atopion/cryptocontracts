@@ -596,7 +596,7 @@ class Peer:
         The data is checked for prefixes and processed accordingly.
         
         
-        parameters:
+        Parameters:
         -----------
         conn : connection object
             connection of specific peer
@@ -659,63 +659,63 @@ class Peer:
                                 # connection successful
                                 self.active_connectable_addresses.append((rec_peer[0],rec_peer[1]))
 
-                        # received a block
-                        elif mode == 20:
-                            print("{}: Received transmission from {}:{}".format(self.get_time(), address[0], int(address[1])))
-                            self.cb_receive_message(Transmission.from_json(msg[1:]))
-
-                        # Synchronization request
-                        elif mode == 31:
-                                print("{}: Received synchronization request from {}:{}".format(self.get_time(), address[0], int(address[1])))
-                                if self.cb_send_sync_message is not None:
-                                    self.cb_send_sync_message(conn)     # send head of own chain to requester
-
-                        # Synchronization answer
-                        elif mode == 32:
-                            print("{}: Received synchronization answer from {}:{}".format(self.get_time(), address[0], int(address[1])))
-                            data = json.loads(str(msg[1:]))
-                            data["conn"] = conn
-                            self.synchronization_request_answers.append(data)
-                            if len(self.synchronization_request_answers) == len(self.connected_peers):
-                                # already have same chain
-                                self.synchronization_finished_event.set()
-
-                        # Subchain request
-                        elif mode == 33:
-                            print("{}: Received subchain request from {}:{}".format(self.get_time(), address[0], int(address[1])))
-                            hash = str(msg[1:])
-                            if self.cb_send_subchain_message is not None:
-                                self.cb_send_subchain_message(conn, hash)   # send subchain that is coming afterreceived hash
-                                
-                        # received subschain 
-                        elif mode == 34 or mode == 35:
-                            print("{}: Received subchain from {}:{}".format(self.get_time(), address[0], int(address[1])))
-                            try:
-                                rec_data = msg[1:].split("&")   # indicator & separates length and actual message of subchain
-                                length = int(rec_data[0])
-                                all_data = rec_data[1]
-                                while len(all_data) < length:   # if message longer than buffersize keep receiving until message complete
-                                    to_read = length - len(all_data)
-                                    all_data += str(conn.recv(self.BUFFERSIZE if to_read > self.BUFFERSIZE else to_read), "utf-8")
-
-                                # Subchain answer
-                                if mode == 34:
-                                    # start adding to chain process
-                                    self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\", ""))     # bring into right format
-                                    self.synchronization_subchain_event.set()
-
-                                # synchronizing node has more transmissions than the synchronizing partners
-                                else:
-                                    self.synchronization_chain = core.core.Transmission.list_from_json(
-                                        all_data.replace("\\", ""))     # bring into right format
-                                    if self.cb_receive_subchain_message is not None:    # start synchronizing
-                                        self.cb_receive_subchain_message(self.synchronization_chain)
-
-                            except Exception as e:
-                                if self.output == "debug":
-                                    print("{}: Could not receive subchain".format(self.get_time()))
-                                    print("{}: Reason: {} \n".format(self.get_time(),e))
+#                        # received a block
+#                        elif mode == 20:
+#                            print("{}: Received transmission from {}:{}".format(self.get_time(), address[0], int(address[1])))
+#                            self.cb_receive_message(Transmission.from_json(msg[1:]))
+#
+#                        # Synchronization request
+#                        elif mode == 31:
+#                                print("{}: Received synchronization request from {}:{}".format(self.get_time(), address[0], int(address[1])))
+#                                if self.cb_send_sync_message is not None:
+#                                    self.cb_send_sync_message(conn)     # send head of own chain to requester
+#
+#                        # Synchronization answer
+#                        elif mode == 32:
+#                            print("{}: Received synchronization answer from {}:{}".format(self.get_time(), address[0], int(address[1])))
+#                            data = json.loads(str(msg[1:]))
+#                            data["conn"] = conn
+#                            self.synchronization_request_answers.append(data)
+#                            if len(self.synchronization_request_answers) == len(self.connected_peers):
+#                                # already have same chain
+#                                self.synchronization_finished_event.set()
+#
+#                        # Subchain request
+#                        elif mode == 33:
+#                            print("{}: Received subchain request from {}:{}".format(self.get_time(), address[0], int(address[1])))
+#                            hash = str(msg[1:])
+#                            if self.cb_send_subchain_message is not None:
+#                                self.cb_send_subchain_message(conn, hash)   # send subchain that is coming afterreceived hash
+#                                
+#                        # received subschain 
+#                        elif mode == 34 or mode == 35:
+#                            print("{}: Received subchain from {}:{}".format(self.get_time(), address[0], int(address[1])))
+#                            try:
+#                                rec_data = msg[1:].split("&")   # indicator & separates length and actual message of subchain
+#                                length = int(rec_data[0])
+#                                all_data = rec_data[1]
+#                                while len(all_data) < length:   # if message longer than buffersize keep receiving until message complete
+#                                    to_read = length - len(all_data)
+#                                    all_data += str(conn.recv(self.BUFFERSIZE if to_read > self.BUFFERSIZE else to_read), "utf-8")
+#
+#                                # Subchain answer
+#                                if mode == 34:
+#                                    # start adding to chain process
+#                                    self.synchronization_chain = core.core.Transmission.list_from_json(
+#                                        all_data.replace("\\", ""))     # bring into right format
+#                                    self.synchronization_subchain_event.set()
+#
+#                                # synchronizing node has more transmissions than the synchronizing partners
+#                                else:
+#                                    self.synchronization_chain = core.core.Transmission.list_from_json(
+#                                        all_data.replace("\\", ""))     # bring into right format
+#                                    if self.cb_receive_subchain_message is not None:    # start synchronizing
+#                                        self.cb_receive_subchain_message(self.synchronization_chain)
+#
+#                            except Exception as e:
+#                                if self.output == "debug":
+#                                    print("{}: Could not receive subchain".format(self.get_time()))
+#                                    print("{}: Reason: {} \n".format(self.get_time(),e))
 
                         # if no prefix consider data a message and print it
                         else:
@@ -781,15 +781,16 @@ class Peer:
     def outgoing_connection_handler(self, address, sock):
         """ Manages outgoing connections to other peers
 
-        It is constantly waited for incoming data. The data is a byte stream.
+        It is constantly waited for incoming data in a byte stream. 
+        The data is checked for prefixes and processed accordingly.
         
         
-        parameters:
+        Parameters:
         -----------
-        conn : connection object
-            connection of specific peer
         addr : (str, int)
             a tuple of the IP address and the port number of specific peer
+        sock : socket object
+            a socket object managing connection to peer of address
         """
 
         self.send_port(address, sock)   # for matching of address and connection
@@ -844,72 +845,68 @@ class Peer:
                         core.network_log("RECEIVED \\x", mode, " from ", address[0])    # log statement
 
                         # look for specific prefix indicating the list of active peers
-#                        elif mode == 14:
-#                            # notification that connectable address not available anymore
-#                            offline_peer = msg[1:].split(":")
-#                            for addr in self.active_connectable_addresses:
-#                                if offline_peer[0] == addr[0] and int(offline_peer[1]) == addr[1]:
-#                                    self.active_connectable_addresses.remove(addr)
-##                                    self.send_offline_connectable_address(addr)
-#                                    break   # considering that no redundant addresses in list
-                        
-#                        if mode == 20:
-#                            print("{}: Received transmission from {}:{}".format(self.get_time(), address[0], int(address[1])))
-#                            self.cb_receive_message(Transmission.from_json(msg[1:]))
-#
-#                        elif mode == 31:
-#                            # Synchronization request
-#                            print("{}: Received synchronization request from {}:{}".format(self.get_time(), address[0], int(address[1])))
-#                            if self.cb_send_sync_message is not None:
-#                                self.cb_send_sync_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))])
-#
-#                        elif mode == 32:
-#                            # Synchronization answer
-#                            print("{}: Received synchronization answer from {}:{}".format(self.get_time(), address[0], int(address[1])))
-#                            data = json.loads(str(msg[1:]))
-#                            data["conn"] = self.address_connection_pairs[str(address[0]+":"+str(address[1]))]
-#                            self.synchronization_request_answers.append(data)
-#                            # TODO multiple connections
-#                            if len(self.synchronization_request_answers) == len(self.connected_peers):
-#                                self.synchronization_finished_event.set()
-#                            #self.synchronization_finished_event.set()
-#
-#                        elif mode == 33:
-#                            # Subchain request
-#                            print("{}: Received subchain request from {}:{}".format(self.get_time(), address[0], int(address[1])))
-#                            hash = str(msg[1:])
-#                            if self.cb_send_subchain_message is not None:
-#                                self.cb_send_subchain_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))], hash)
-#
-#                        elif mode == 34 or mode == 35:
-#                            print("{}: Received subchain from {}:{}".format(self.get_time(), address[0], int(address[1])))
-#                            try:
-#                                rec_data = msg[1:].split("&")
-#                                length = int(rec_data[0])
-#                                all_data = rec_data[1]
-#                                while len(all_data) < length:
-#                                    to_read = length - len(all_data)
-#                                    all_data += str(sock.recv(self.BUFFERSIZE if to_read > self.BUFFERSIZE else to_read), "utf-8")
-#
-#                                if mode == 34:
-#                                    # Subchain answer
-#                                    self.synchronization_chain = core.core.Transmission.list_from_json(
-#                                        all_data.replace("\\", ""))
-#                                    self.synchronization_subchain_event.set()
-#
-#                                else:
-#                                    # synchronizing node has more transmissions than the synchronizing partners
-#                                    self.synchronization_chain = core.core.Transmission.list_from_json(
-#                                        all_data.replace("\\", ""))
-#                                    self.cb_receive_subchain_message(self.synchronization_chain)
-#
-#                            except Exception as e:
-#                                print("{}: Could not receive subchain".format(self.get_time()))
-#                                print("{}: Reason: {} \n ".format(self.get_time(),e))
-#
-#                        # if no prefix consider data a message and print it
-#                        else:
-#                            print("{}: Message from: {}:{} : {} \n".format(self.get_time(), address[0], int(address[1]),msg))
+
+                         # received a block
+                        if mode == 20:
+                            print("{}: Received transmission from {}:{}".format(self.get_time(), address[0], int(address[1])))
+                            self.cb_receive_message(Transmission.from_json(msg[1:]))
+
+                        # Synchronization request
+                        elif mode == 31:
+                                print("{}: Received synchronization request from {}:{}".format(self.get_time(), address[0], int(address[1])))
+                                if self.cb_send_sync_message is not None:
+                                    self.cb_send_sync_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))])     # send head of own chain to requester
+
+                        # Synchronization answer
+                        elif mode == 32:
+                            print("{}: Received synchronization answer from {}:{}".format(self.get_time(), address[0], int(address[1])))
+                            data = json.loads(str(msg[1:]))
+                            data["conn"] = self.address_connection_pairs[str(address[0]+":"+str(address[1]))]
+                            self.synchronization_request_answers.append(data)
+                            if len(self.synchronization_request_answers) == len(self.connected_peers):
+                                # already have same chain
+                                self.synchronization_finished_event.set()
+
+                        # Subchain request
+                        elif mode == 33:
+                            print("{}: Received subchain request from {}:{}".format(self.get_time(), address[0], int(address[1])))
+                            hash = str(msg[1:])
+                            if self.cb_send_subchain_message is not None:
+                                self.cb_send_subchain_message(self.address_connection_pairs[str(address[0]+":"+str(address[1]))], hash)   # send subchain that is coming after received hash
+                                
+                        # received subschain 
+                        elif mode == 34 or mode == 35:
+                            print("{}: Received subchain from {}:{}".format(self.get_time(), address[0], int(address[1])))
+                            try:
+                                rec_data = msg[1:].split("&")   # indicator & separates length and actual message of subchain
+                                length = int(rec_data[0])
+                                all_data = rec_data[1]
+                                while len(all_data) < length:   # if message longer than buffersize keep receiving until message complete
+                                    to_read = length - len(all_data)
+                                    all_data += str(sock.recv(self.BUFFERSIZE if to_read > self.BUFFERSIZE else to_read), "utf-8")
+
+                                # Subchain answer
+                                if mode == 34:
+                                    # start adding to chain process
+                                    self.synchronization_chain = core.core.Transmission.list_from_json(
+                                        all_data.replace("\\", ""))     # bring into right format
+                                    self.synchronization_subchain_event.set()
+
+                                # synchronizing node has more transmissions than the synchronizing partners
+                                else:
+                                    self.synchronization_chain = core.core.Transmission.list_from_json(
+                                        all_data.replace("\\", ""))     # bring into right format
+                                    if self.cb_receive_subchain_message is not None:    # start synchronizing
+                                        self.cb_receive_subchain_message(self.synchronization_chain)
+
+                            except Exception as e:
+                                if self.output == "debug":
+                                    print("{}: Could not receive subchain".format(self.get_time()))
+                                    print("{}: Reason: {} \n".format(self.get_time(),e))
+
+                        # if no prefix consider data a message and print it
+                        else:
+                            print("{}: Message from {}:{} : {}".format(self.get_time(), address[0], int(address[1]), msg))
 
             # connection closed unordinarily
             except ConnectionResetError or ConnectionAbortedError:
@@ -1055,56 +1052,130 @@ class Peer:
 
         self.host_addr = (host_addr,self.port)  
         
-        
-########################################### continue here with commenting #########################################
-        
     def send_synchronize_request(self):
+        """ Send a synchronization request to all connected peers
+        
+            Send request to all peers that this host is connected to
+            and wait for their answers. The other peers reply with the latest
+            transmission hash in their chain.
+            
+            Return
+            ------
+            res : list
+                a list of the last transmission hashes of all connected peers 
+        """
+        
+        # send request  to all connections
         for conn in self.connections:
             conn.send(b'\x31!')
 
-        print("{}: Synchronization request sent".format(self.get_time()))
-        self.synchronization_finished_event.wait(30)
-        res = self.synchronization_request_answers
-        self.synchronization_request_answers = []
-        self.synchronization_finished_event = threading.Event()
-        core.network_log("SEND \\x31 to ", [x for x in self.connections])
-        return res
+        WAIT_DUR = 30   # waiting duration in seconds
 
+        print("{}: Synchronization request sent".format(self.get_time()))
+        self.synchronization_finished_event.wait(WAIT_DUR)  # finish synchronization requesting process after specifinc time
+        res = self.synchronization_request_answers  # answers of all peers
+        self.synchronization_request_answers = []   # clear list
+        self.synchronization_finished_event = threading.Event()     # reset event
+        core.network_log("SEND \\x31 to ", [x for x in self.connections])   # log statement
+        return res
+    
     def send_sync_request_answer(self, conn, obj):
-        conn.send(b'\x32' + bytes(json.dumps(obj), "utf-8"))
+        """ Send last transmission hash of own chain 
+        
+        Parameters
+        ----------
+        conn: connection object 
+            a connection object of the connection to a specific peer
+        obj: str
+            transmission hash of latest block in the own chain
+        """
+        
+        conn.send(b'\x32' + bytes(json.dumps(obj), "utf-8"))    # send latest transmission hash to peer belonging to conn
         print("{}: Synchronization request answer sent".format(self.get_time()))
-        core.network_log("SEND \\x32 to ", conn)
+        core.network_log("SEND \\x32 to ", conn)    # log statement
 
     def request_subchain(self, msg, hash):
+        """ Request specific subchain from all connected peer
+            
+        Send specific prefix and latest transmission hash own chain
+        to peer represented by msg.
+        
+        Parameters
+        ----------
+        msg : dict
+            a dictionary containing information about specific peer
+        hash : latest transmission hash of own chain
+        
+        Return
+        ------
+        self.synchronization_chain : list of chain objects
+            a list containing the subchains of the other peers
+        """
+        
+        WAIT_DUR = 30   # waiting duration in seconds
+        
         self.synchronization_chain = None
         msg["conn"].send(b'\x33' + bytes(hash, "utf-8"))
         print("{}: Subchain requested".format(self.get_time()))
-        core.network_log("SEND \\x33 to ", msg["conn"])
-        self.synchronization_subchain_event.wait(30)
-        self.synchronization_subchain_event = threading.Event()
+        core.network_log("SEND \\x33 to ", msg["conn"]) # log statement
+        self.synchronization_subchain_event.wait(WAIT_DUR)    # wait specific time to receive answers
+        self.synchronization_subchain_event = threading.Event()     # reset event
         return self.synchronization_chain
 
     def send_n2_subchain(self, conn, obj):
-        chain = bytes(Transmission.list_to_json(obj), "utf-8")
-        length = len(chain)
-        # send prefix, length of data and chain. ! and & used for separation
+        """ Send own subchain to requester 
+        
+        Transform chain object to json and then to bytes and add the length of 
+        the whole transformed chain and send it to peer.
+        
+        Parameters
+        ----------
+        conn : connection object
+            connection object belonging to peer
+        obj : str
+            subchain that shall be send
+        """
+        
+        chain = bytes(Transmission.list_to_json(obj), "utf-8")  # convert to json and to bytes
+        length = len(chain) 
+        # send prefix, length of data and chain. & used for separation
         conn.send(b'\x34' + bytes(str(length), "utf-8") + b'&' + chain)
         print("{}: Subchain sent \n".format(self.get_time()))
-        core.network_log("SEND \\x34 to ", conn)
-        # conn.send(b'\x34' + bytes(json.dumps([x.to_json() for x in obj]), "utf-8") + b'!')
+        core.network_log("SEND \\x34 to ", conn)    # log statement
 
     def send_n1_subchain(self, obj):
+        """ Send own subchain that is ahead of other peer to promote own chain
+        
+        Transform chain object to json and then to bytes and add the length of 
+        the whole transformed chain and send it to all connected peers.
+        
+        Parameters
+        ----------
+        obj : str
+            the subchain that shall be send
+        """
+        
         chain = bytes(Transmission.list_to_json(obj), "utf-8")
         length = len(chain)
+        # send prefix, length of data and chain. & used for separation
         for conn in self.connections:
             conn.send(b'\x35' + bytes(str(length), "utf-8") + b'&' + chain)
         print("{}: Subchain sent \n".format(self.get_time()))
-        core.network_log("SEND \\x35 to ", [x for x in self.connections])
+        core.network_log("SEND \\x35 to ", [x for x in self.connections])   # log statement
 
     def send_transmission(self, transmission: Transmission):
+        """ Send a block to all connected peers in the net
+        
+        Parameters
+        ----------
+        transmission : Transmission object
+            a block from the blockchain
+        """
+        
         for conn in self.connections:
+            # add prefix, transform to json and bytes and send to all connected peers
             conn.send(b'\x20' + bytes(json.dumps(transmission.to_json()), "utf-8"))
         print("{}: Transmission sent".format(self.get_time()))
-        core.network_log("SEND \\x20 to ", [x for x in self.connections])
+        core.network_log("SEND \\x20 to ", [x for x in self.connections])   # log statement
 
 
