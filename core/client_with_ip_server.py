@@ -3,7 +3,7 @@ import random
 from core import core
 from core.transmission import Transmission, signing
 from storage import storage
-from network.peer_ip_server import Peer
+from network.peer import Peer
 
 SUCCESS = 1
 FAIL = 0
