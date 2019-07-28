@@ -1,9 +1,8 @@
-
-
 ;; hash methods in order, ':' concat
 [hash]
 documents=blake:whirlpool:sha3_512
 
+;; port number for peer connecting to network
 [server]
 port=9000
 
@@ -20,5 +19,10 @@ pass=
 ;; public server from which to request initial ip list for network join
 [ip-server]
 addr=
+
+;; address and port dedicated to GUI
+[gui]
+addr=10.0.2.15
+port=9001
 
 
