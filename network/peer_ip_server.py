@@ -22,9 +22,6 @@ from storage import config, storage
 
 
 
-
-
-
 class Peer:
     """ A class representing a Peer of the peer-to-peer network 
         for the blockchain project cryptocontracts
@@ -137,6 +134,7 @@ class Peer:
     def __init__(self,addr=None, port=None, list_chain=None, send_sync_message=None, send_subchain_message=None,
                  start_sync=None, receive_subchain_message=None, receive_message=None, scope=None, output=None):
         
+        # methods giving or transmitting blockchain information
         self.cb_list_chain = list_chain
         self.cb_start_sync = start_sync
         self.cb_send_sync_message = send_sync_message
@@ -156,6 +154,7 @@ class Peer:
             print("{} is not a valid statement for scope. Either assign external, internal or localhost for the scope corresponding to the network".format(scope))
             sys.exit(0)
             
+        # define system output
         if output == "user" or output == "debug":
             self.output = output
         elif output == None:
@@ -218,36 +217,49 @@ class Peer:
         The user can choose from various options to display information or perform actions.
         """
         
+        help_text = "The following system commands are available: \n" \
+        + "client/connections: displays the peers connected to this host \n" \
+        + "connectable:        displays the addresses of the active peers to that a connection can be established \n" \
+        + "exit/quit/close     disconnects from the network and end the program \n" \
+        + "help:               displays input possiblities for performing actions or displaying information \n" \
+        + "host:               displays address of this host to which other peers can connect to \n" \
+        + "list:               displays the blockchain currently stored in own database \n" \
+        + "pairs:              displays the matching between the socket address incoming connections of a peer and its socket address over that it is connected to this peer \n" \
+        + "servers:            displays the addresses of the peers to that this host is connected \n" \
+        + "sync:               start synchronization process of blockchain \n"
+        
         while True:
             try:
 
                 i = input()
-                if i == "connectable":
+                if i == "clients":
+                    p = self.get_connected_peers()
+                    print(p)
+                elif i == "connectable":
                     p = self.get_active_connectable_addresses()
                     print(p)
-                elif i == "exit" or i == "quit" or i == "close":
-                    self.disconnect_from_net()
                 elif i == "connections":
                     p = self.get_connected_peers()
                     print(p)
+                elif i == "exit" or i == "quit" or i == "close":
+                    self.disconnect_from_net()
+                elif i == "help":
+                    print(help_text)
+                elif i == "host":
+                    p = self.host_addr
+                    print(p[0]+":"+str(p[1]))
+                elif i == "list":   # display the current chain
+                    if self.cb_list_chain is not None:
+                        self.cb_list_chain()
+                elif i == "pairs":
+                    print(self.address_connection_pairs)
                 elif i == "servers":
                     p = self.get_server_peers()
-                    print(p)
-                elif i == "clients":
-                    p = self.get_connected_peers()
                     print(p)
                 elif i == "sync":   # start synchronization process
                     if self.cb_start_sync is not None:
                         print("{}: Starting synchronization...".format(self.get_time()))
                         self.cb_start_sync()
-                elif i == "list":   # display the current chain
-                    if self.cb_list_chain is not None:
-                        self.cb_list_chain()
-                elif i == "host":
-                    p = self.host_addr
-                    print(p[0]+":"+str(p[1]))
-                elif i == "pairs":
-                    print(self.address_connection_pairs)
                 else:   # send message
                     for connection in self.connections:
                         connection.send(bytes(str(i),'utf-8'))
@@ -306,6 +318,8 @@ class Peer:
         
         time.sleep(1)    # so server_thread has time to bind socket and assign port
         self.set_host_addr()    # set IP address and port number of this peer
+        
+        print("Enter help for list of commands \n")
         
         if self.output == "debug":
             print("{}: Host address: {}".format(self.get_time(),self.host_addr))
@@ -580,54 +594,55 @@ class Peer:
         self.gui_socket.bind((addr, port))
         self.gui_socket.listen(1)
     
-    
-        while True:
+        try:
             gui_conn, gui_addr = self.gui_socket.accept()
-            
             print("{}: GUI connected".format(self.get_time()))
+        except OSError:
+            pass    # program closed without GUI being connected
             
-            while True:
-                try:
-                    # receive commands from GUI
-                    data = gui_conn.recv(self.BUFFERSIZE)
-                    if not data:
-                        if self.output == "debug":
-                            print("{}: GUI closed".format(self.get_time()))
-                        gui_conn.close()
-                        break
-                    
+            
+        while True:
+            try:
+                # receive commands from GUI
+                data = gui_conn.recv(self.BUFFERSIZE)
+                if not data:
                     if self.output == "debug":
-                        print("{}: From GUI received {}".format(self.get_time(),data))
-                    
-                    data = str(data, "utf-8")
-                    mode = int(bytes(data[0], "utf-8").hex()[0:2])
-                    content = data[1:]
-                    
-                    # request for last transmission hash in chain alias head
-                    if mode == 11:
-                        if self.output == "debug":
-                            print("{}: Received head of chain request from GUI".format(self.get_time()))
-                        head = storage.get_head()   # get head from storage
-                        gui_conn.send(b'\x21' + bytes(json.dumps(head), "utf-8"))   # send head in json format
-                        if self.output == "debug":
-                            print("{}: Sent head of chain to GUI".format(self.get_time()))
-                            
-                    # request for adding a new block to the chain       
-                    if mode == 12:
-                        if self.output == "debug":
-                            print("{}: Received document upload request from GUI".format(self.get_time()))
-                        content = Transmission.from_json(content)   # convert to json format
-                        storage.put_block(content)  # add to local chain  
-                        gui_conn.send(b'\x22')  # send acknowledgement to GUI 
-                        # Publish block to the network
-                        if self.cb_start_sync is not None:
-                            print("{}: Starting synchronization...".format(self.get_time()))
-                            self.cb_start_sync()
+                        print("{}: GUI closed".format(self.get_time()))
+                    gui_conn.close()
+                    break
                 
-                # GUI disconnected not ordinary
-                except ConnectionResetError or ConnectionAbortedError:
+                if self.output == "debug":
+                    print("{}: From GUI received {}".format(self.get_time(),data))
+                
+                data = str(data, "utf-8")
+                mode = int(bytes(data[0], "utf-8").hex()[0:2])
+                content = data[1:]
+                
+                # request for last transmission hash in chain alias head
+                if mode == 11:
                     if self.output == "debug":
-                        print("{}: Lost connection to GUI".format(self.get_time()))
+                        print("{}: Received head of chain request from GUI".format(self.get_time()))
+                    head = storage.get_head()   # get head from storage
+                    gui_conn.send(b'\x21' + bytes(json.dumps(head), "utf-8"))   # send head in json format
+                    if self.output == "debug":
+                        print("{}: Sent head of chain to GUI".format(self.get_time()))
+                        
+                # request for adding a new block to the chain       
+                if mode == 12:
+                    if self.output == "debug":
+                        print("{}: Received document upload request from GUI".format(self.get_time()))
+                    content = Transmission.from_json(content)   # convert to json format
+                    storage.put_block(content)  # add to local chain  
+                    gui_conn.send(b'\x22')  # send acknowledgement to GUI 
+                    # Publish block to the network
+                    if self.cb_start_sync is not None:
+                        print("{}: Starting synchronization...".format(self.get_time()))
+                        self.cb_start_sync()
+            
+            # GUI disconnected not ordinary or not connected before closing program
+            except (ConnectionResetError, ConnectionAbortedError, UnboundLocalError):
+                if self.output == "debug":
+                    print("{}: Lost connection to GUI".format(self.get_time()))
 
     def incoming_connection_handler(self, conn, address):
         """ Manages incoming connections from other peers
@@ -762,7 +777,7 @@ class Peer:
                             print("{}: Message from {}:{} : {}".format(self.get_time(),address[0], int(address[1]),msg))
 
             # connection closed unordinarily
-            except ConnectionResetError or ConnectionAbortedError:
+            except (ConnectionResetError, ConnectionAbortedError):
                 if self.output == "debug":
                     print("{}: {}:{} Connection impolitely closed.".format(self.get_time(), address[0],str(address[1])))
                     
@@ -864,7 +879,7 @@ class Peer:
                     # remove connection pairs from list
                     try:
                         self.address_connection_pairs.pop(str(address[0]+":"+str(address[1])))
-                    except Exception:
+                    except:
                         if self.output == "debug":
                             print("{}: Could not remove address from address connection pair dict".format(self.get_time()))
 
@@ -956,7 +971,7 @@ class Peer:
                             print("{}: Message from {}:{} : {}".format(self.get_time(), address[0], int(address[1]), msg))
 
             # connection closed unordinarily
-            except ConnectionResetError or ConnectionAbortedError:
+            except (ConnectionResetError, ConnectionAbortedError):
                 if self.output == "debug":
                     print("{}: {}:{} impolitely disconnected.".format(self.get_time(), address[0],str(address[1])))
                     
@@ -973,7 +988,7 @@ class Peer:
                         print("{}: Could not remove server peer: {}:{} from active connectable address list".format(self.get_time(), address[0],str(address[1])))
                 try:
                     self.address_connection_pairs.pop(str(address[0]+":"+str(address[1])))
-                except Exception:
+                except:
                     if self.output == "debug":
                         print("{}: Could not remove address from address connection pair dict".format(self.get_time()))
 
