@@ -1,0 +1,26 @@
+Manual:
+
+Hello and welcome to CryptoContracts!
+First of all, great decision to choose this system.
+
+Here are the steps listed that you need to perform in order to start the program:
+
+1) State the necessary information in the "config.ini" file:
+	This file needs to contain information about IP Server address, port numbers and database directory.
+	A template file can be found in the main directory
+
+2) Make sure that open the port specified under the section server in the config.ini file is open.
+	Usually you can open ports in the network settings of your router
+
+3) Start the Peer function:
+	execute the file /cryptocontracts/exec_peer.py
+	This program creates a peer object and connects to the network
+	For a list of all the possible commands enter help.
+
+4) If you want to add a block to the chain you need to start the GUI:
+	This requires that step 3) has been perfomed
+	execute the file /cryptocontracts/exec_gui.py
+	This program starts the GUI where you have to insert the contract, your key pair and the address of your contract partner
+	After connecting with your partner you can send the document.
+	In the end the block is added to your local chain and directly published to the network
+
