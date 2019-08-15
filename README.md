@@ -74,7 +74,7 @@ Sebastian Rahe, Tobias Haar, René Lars Wetzelt, Stefan Pfeiffer and Timon Vogt
 
 ## Dependencies
 * python3
-* python3 modules: plyvel, numpy, PyQt5, requests
+* python3 modules: plyvel, numpy, PyQt5, requests, pycryptodome
 
 ## Environment Overrides
 * DB\_PATH\_OVERRIDE : Overrides database.path from config.ini
