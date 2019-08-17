@@ -1,6 +1,7 @@
 from core import core, cryptoHashes, signing
 import json
 
+
 class Transmission:
 
     def __init__(self):
@@ -40,6 +41,15 @@ class Transmission:
             "transmission_hash" : self.transmission_hash
         }
         return json.dumps(x)
+
+    def get_transmission_hash(self):
+        prev = bytearray(self.previous_hash, "utf-8")
+        time = bytearray(self.timestamp, "utf-8")
+        pubs = bytearray("".join(self.pub_keys), "utf-8")
+        hash = bytearray(self.hash, "utf-8")
+        sign = bytearray(self.signed_hash, "utf-8")
+        comb = prev + time + pubs + hash + sign
+        return cryptoHashes.CryptoHashes.sha3_512(comb)
 
     @staticmethod
     def generate(previous_hash:str, timestamp, pub_keys, hash, signed_hash, transmission_hash):
@@ -89,10 +99,10 @@ class Transmission:
             xl.append(x)
         return json.dumps(xl)
 
-
+    """
     def unsigned_transmission_hash(self):
         return signing.unsign(self.transmission_hash, self.pub_keys)
-
+    """
     def is_valid(self):
         if self.previous_hash is None or self.previous_hash == "":
             return False

@@ -60,7 +60,7 @@ def checksum(path = None, s = None, byte = None):
     hexstr += CryptoHashes.whirlpool(byte)
     hexstr += CryptoHashes.sha3_512(byte)
     hexstr += CryptoHashes.blake(byte)
-    print("Produce checksum execution: ", time.time() - start_time, " s")
+    print("Produce checksum execution time: ", time.time() - start_time, " s")
     return int(hexstr, 16)
 
 
@@ -70,7 +70,31 @@ def compare(checksum_a, checksum_b):
     return False
 
 
-def lookup(checksum): return None
+def produce_transmission_initial(previous_hash: str, pub_keys: list, document_hash: str, signed_document_hash: str, transmission_hash: str):
+    if previous_hash is None or document_hash is None or pub_keys is None or len(pub_keys) == 0:
+        return None
+
+    transmission = Transmission()
+    transmission.previous_hash = previous_hash
+    transmission.timestamp = hex(int(time.time()))[2:]
+    transmission.pub_keys = pub_keys
+    transmission.hash = document_hash
+    transmission.signed_hash = signed_document_hash
+    transmission.transmission_hash = transmission_hash
+    return transmission
+
+def produce_transmission_dummy(previous_hash: str, pub_keys: list, document_hash: str, signed_document_hash: str, transmission_hash: str):
+    if previous_hash is None or document_hash is None or pub_keys is None or len(pub_keys) == 0:
+        return None
+
+    transmission = Transmission()
+    transmission.previous_hash = previous_hash
+    transmission.timestamp = hex(int(time.time()))[2:]
+    transmission.pub_keys = pub_keys
+    transmission.hash = document_hash
+    transmission.signed_hash = signed_document_hash
+    transmission.transmission_hash = transmission_hash
+    return transmission
 
 
 def produce_transmission_fully(previous_hash: str, private_keys: list, pub_keys: list, document_hash: str):

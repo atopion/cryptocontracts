@@ -12,6 +12,8 @@ MAX_ENCRYPT_LENGTH = 214
 def sign(value, keys):
 	if isinstance(keys, str):
 		keys = [keys]
+	if isinstance(value, int):
+		value = str(value)
 	signed_value = value.encode('utf-8')
 	for key in keys:
 		cipher = PKCS1_OAEP.new(RSA.import_key(key))
@@ -26,12 +28,14 @@ def sign(value, keys):
 				else:
 					signed_value_parts = signed_value_parts + cipher.encrypt(signed_value[x*128:(x+1)*128])
 			signed_value = signed_value_parts
-	return b64encode(signed_value)
+	return b64encode(signed_value).decode("utf-8")
 
 #Unsigns 'hash' with public key
 def unsign(value, keys):
 	if isinstance(keys, str):
 		keys = [keys]
+	if isinstance(value, int):
+		value = str(value)
 	unsigned_value = b64decode(value)
 	for key in keys:
 		cipher = PKCS1_OAEP.new(RSA.import_key(key))
