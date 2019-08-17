@@ -7,6 +7,7 @@ from core import core, transmission
 import threading
 import json
 from storage import config
+from core import signing
 
 
 class ModeDialog(QDialog):
@@ -85,6 +86,9 @@ class GUI(QMainWindow):
 		self.transmission = transmission.Transmission()
 		self.ipc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.previous_hash = None
+		self.doc_hash = None
+		self.pubkey = None
+		self.privkey = None
 		self.mutex = threading.Lock()
 		self.mutex.acquire()
 		self.init_ui()
@@ -246,7 +250,22 @@ class GUI(QMainWindow):
 		mode.exec_()
 		master = mode.is_master()
 		ip = mode.get_text()
-		if self.inputs_valid() and GUI.validate_ip(ip):
+		own_ip = GUI.get_ip("public")
+		if own_ip == ip:
+
+			self.ipc_send(1)
+			privkey_list = [self.privkey]
+			pubkey_list = [self.pubkey]
+			self.doc_hash = str(self.doc_hash)
+			self.transmission = core.produce_transmission_fully(previous_hash=self.previous_hash, private_keys=privkey_list, pub_keys=pubkey_list, document_hash=self.doc_hash)
+			trans_hash = signing.unsign(self.transmission.transmission_hash, privkey_list)
+			if not self.transmission.get_transmission_hash() == trans_hash:
+				self.transmission = None
+				return
+			else:
+				self.update_progress_bar(self.conn_label, ip)
+				print("block validated: correct")
+		elif self.inputs_valid() and GUI.validate_ip(ip):
 			if master:
 				print("master send", ip)
 				self.master_send(master, ip)
@@ -257,7 +276,6 @@ class GUI(QMainWindow):
 		mode.close()
 
 	def master_send(self, master, ip):
-		#ip, ok = QInputDialog.getText(self, 'Select mode', 'Enter ip address of other client:')
 		own_ip = GUI.get_ip("public")
 
 		if GUI.validate_ip(ip):
@@ -293,8 +311,9 @@ class GUI(QMainWindow):
 						print("Connection failed:", err)
 						return
 					self.transmission = core.Transmission.from_json(received_trans)
-					####################################################################################################
+
 					self.update_progress_bar(self.conn_label, ip)
+
 				else:
 					return
 			else:
@@ -305,18 +324,16 @@ class GUI(QMainWindow):
 			self.update_progress_bar(self.conn_label, ip)
 
 	def slave_receive(self, ip):
-		print("stage 1:")
 		own_ip = GUI.get_ip("public")
+		# stage 1 start
 		received_json = GUI.receive_from_partner(own_ip)
-		# print(received_json)
 		received_trans = core.Transmission.from_json(received_json)
 		temp_trans = core.produce_transmission_stage_one(self.privkey, self.pubkey, transmission=received_trans)
 		trans_json = temp_trans.to_json()
 		GUI.send_to_partner(ip, trans_json)
 
-		print("stage 2:")
+		# stage 2 start
 		received_json = GUI.receive_from_partner(own_ip)
-		# print(received_json)
 		received_trans = core.Transmission.from_json(received_json)
 		temp_trans = core.produce_transmission_stage_two(previous_hash=None, private_key=self.privkey, transmission=received_trans, master=False)
 		trans_json = temp_trans.to_json()
@@ -325,17 +342,13 @@ class GUI(QMainWindow):
 
 	def clicked_add_to_layer(self):
 	# put block into db if valid
-		# print("adding to layer")
-		# print("check self:", self.transmission.check_self())
-		# print("is valid:", self.transmission.is_valid())
-		if self.transmission.check_self() and self.transmission.is_valid():
+		if self.inputs_valid():
 			print(self.transmission.to_json())
 			self.ipc_send(0)
 			self.progress.setValue(self.PROGRESS_MAX)
 
 	def inputs_valid(self):
-		if self.file_label != self.DEFAULT_STRING and self.sign1_label != self.DEFAULT_STRING and self.sign2_label != self.DEFAULT_STRING:
-			####test if keys are matching and for valid doc_hash####
+		if self.file_label != self.DEFAULT_STRING and self.sign1_label != self.DEFAULT_STRING and self.sign2_label != self.DEFAULT_STRING and self.conn_label != self.DEFAULT_STRING:
 			return True
 		else:
 			return False
@@ -348,8 +361,9 @@ class GUI(QMainWindow):
 		for line in file:
 			if "PRIVATE" in line and not write_flag:
 				write_flag = True
-				continue
+				# continue
 			elif "PRIVATE" in line and write_flag:
+				privkey += line
 				write_flag = False
 			if write_flag:
 				privkey += line
@@ -363,16 +377,18 @@ class GUI(QMainWindow):
 		write_flag = False
 		pubkey = ""
 		for line in file:
-			if not write_flag:
+			"""if not write_flag:
 				if "Comment" in line:
 					write_flag = True
 					continue
 				elif "ssh-rsa" in line:
 					write_flag = True
 			elif "END" in line:
+				pubkey += line
 				write_flag = False
 			if write_flag:
-				pubkey += line
+				pubkey += line"""
+			pubkey += line
 		if write_flag:
 			pubkey = pubkey.split(" ")[1]
 		if not pubkey:
