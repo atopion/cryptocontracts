@@ -64,9 +64,9 @@ if __name__ == '__main__':
                 
         # predefined blocks for storing in database
         prev = storage.get_block(storage.get_head())
-        t1 = core.core.produce_transmission_fully(prev.transmission_hash, ["priv_a", "priv_b"], ["a", "b"], "document-1")
-        t2 = core.core.produce_transmission_fully(t1.transmission_hash, ["priv_c", "priv_d"], ["c", "d"], "document-2")
-        t3 = core.core.produce_transmission_fully(t2.transmission_hash, ["priv_e", "priv_f"], ["e", "f"], "document-3")
+        t1 = core.core.produce_transmission_dummy(prev.transmission_hash, ["pub_a", "pub_b"], "document-1", "document-1_signed", "t1_trans_hash")
+        t2 = core.core.produce_transmission_dummy(t1.transmission_hash, ["pub_c", "pub_d"], "document-2", "document-2_signed", "t2_trans_hash")
+        t3 = core.core.produce_transmission_dummy(t2.transmission_hash, ["pub_e", "pub_f"], "document-3", "document-3_signed", "t3_trans_hash")
     
        
         # test cases
@@ -76,7 +76,6 @@ if __name__ == '__main__':
             else:
                 storage.put_block(t1)
                 storage.put_block(t2)
-    
         elif test == 2:
             if unit < 100:
                 storage.put_block(t1)
