@@ -22,7 +22,11 @@ addr=
 
 ;; address and port dedicated to GUI
 [gui]
-addr=10.0.2.15
-port=9001
+addr=127.0.0.1
+port=9003
+recv=9005
 
+;; port for partner send/receive functions
+[comm]
+port=10150
 
