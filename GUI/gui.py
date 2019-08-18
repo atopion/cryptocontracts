@@ -11,7 +11,9 @@ from core import signing
 
 
 class ModeDialog(QDialog):
-
+	"""
+	Class creating the mode dialog when clicking on the connect button in the main window
+	"""
 	def __init__(self, parent=None):
 		super(ModeDialog, self).__init__(parent)
 		self.master = True
@@ -69,6 +71,96 @@ class ModeDialog(QDialog):
 
 
 class GUI(QMainWindow):
+	"""
+	Class for creation of main window for user interface
+
+	Attributes
+	----------
+	PROGRESS_MAX:
+		maximum value of progressbar
+	DEFAULT_STRING:
+		default string for line edits
+	progress:
+		progress bar representing progress
+	file_label:
+		line edit showing path to contract document
+	pubkey_label:
+		line edit showing path to public key file
+	privkey_label:
+		line edit showing path to private key file
+	conn_label:
+		line edit showing IP address set by user
+	ipc_socket:
+		socket for ipc interface used for communicating with database storing the chain
+	mutex:
+		ensures ipc thread safety
+	transmission:
+		final transmission object
+	previous_hash:
+		transmission hash of the previous block in the chain
+	doc_hash:
+		calculated checksum of contract document
+	pubkey:
+		public key from user specified key file
+	privkey:
+		private key from user specified key file
+
+	Methods
+	-------
+	init_ui():
+		Initiates main window layout
+	set_frame():
+		Sets main window size and location, window title and icon
+	set_menu():
+		Sets menu for main window with exit function
+	set_default_contents():
+		Sets line edit and progress bar defaults
+	set_layouts():
+		Sets layout for main window
+	close_window():
+		Closes main window and terminates ipc interface
+	start_ipc():
+		Sets up thread and socket for ipc interface
+	ipc_send(mode):
+		Sends requests to database for receiving head of chain and adding new block to chain
+	ipc_receive():
+		Receives answers to sent requests over ipc interface
+	update_progress_bar(line_edit, s):
+		Updates progress bar and given line edit contents
+	clicked_select_file():
+		Opens a dialog window to select contract document and read it's path
+	clicked_pubkey():
+		Opens a dialog window to select public key file, read it's path and call get_pubkey(path)
+	clicked_privkey():
+		Opens a dialog window to select private key file, read it's path and call get_privkey(path)
+	connect():
+		Opens dialog box for user to enter ip address to connect to or receive from partner in network or set up
+		single party contract block
+	single_party_contract(ip):
+		Creates full block from locally saved document and keys without sending it to a partner
+	master_send(ip):
+		Initiates communication to partner as master node
+	slave_receive(ip):
+		Initiates communication to partner as receiver node
+	clicked_add_to_layer():
+		Adds created block via ipc to chain
+	inputs_valid():
+		Checks if document hash is not empty and keys are matching
+	get_privkey(path):
+		Reads private key from file
+	get_pubkey(path):
+		Reads public key from file
+	get_ip(mode):
+		Determines public or local IP address depending on mode
+	validate_ip(s):
+		Checks if s is a valid IP address
+	send_to_partner(ip, data):
+		Sends data to partner with IP ip via TCP
+	receive_from_partner(ip):
+		Receives data from partner sent via TCP
+	start():
+		Starts GUI
+	"""
 
 	def __init__(self):
 		super(GUI, self).__init__(parent=None)
@@ -76,38 +168,78 @@ class GUI(QMainWindow):
 		self.DEFAULT_STRING = "No Data"
 		self.progress = QProgressBar(self)
 		self.file_label = QLineEdit(self)
-		self.sign1_label = QLineEdit(self)
-		self.sign2_label = QLineEdit(self)
+		self.pubkey_label = QLineEdit(self)
+		self.privkey_label = QLineEdit(self)
 		self.conn_label = QLineEdit(self)
-		self.check_file = QCheckBox()
-		self.check_pubkey = QCheckBox()
-		self.check_privkey = QCheckBox()
-		self.check_conn = QCheckBox()
-		self.transmission = transmission.Transmission()
 		self.ipc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.mutex = threading.Lock()
+		self.mutex.acquire()
+		self.transmission = transmission.Transmission()
 		self.previous_hash = None
 		self.doc_hash = None
 		self.pubkey = None
 		self.privkey = None
-		self.mutex = threading.Lock()
-		self.mutex.acquire()
+
 		self.init_ui()
 
 	def init_ui(self):
+		"""
+		Initiates main window layout with all buttons, line edits and progress bar
+		"""
+		self.set_frame()
+		self.set_menu()
+		self.set_default_contents()
+		self.set_layouts()
+		self.start_ipc()
+		self.show()
 
-
+	def set_frame(self):
+		"""
+		Sets main window size and location, window title and icon
+		"""
 		screen = QDesktopWidget()
-		self.setGeometry(0, 0, screen.width()/2, screen.height()/2)
-		self.setMinimumSize(screen.width()/3, screen.height()/3)
+		self.setGeometry(0, 0, screen.width() / 2, screen.height() / 2)
+		self.setMinimumSize(screen.width() / 3, screen.height() / 3)
 		self.setWindowTitle('CryptoContracts')
 		self.setWindowIcon(QIcon('GUI/blockchain.png'))
 
-		self.start_ipc()
-
+	def set_menu(self):
+		"""
+		Sets main window menu with exit function
+		"""
 		exit_action = QAction(QIcon('exit.png'), '&Exit', self)
 		exit_action.setShortcut('Ctrl+Q')
 		exit_action.triggered.connect(self.close_window)
 
+		menubar = self.menuBar()
+		file_menu = menubar.addMenu('&File')
+		file_menu.addAction(exit_action)
+
+	def set_default_contents(self):
+		"""
+		Sets line edit and progress bar defaults
+		"""
+		self.file_label.setText(self.DEFAULT_STRING)
+		self.file_label.setReadOnly(True)
+
+		self.pubkey_label.setText(self.DEFAULT_STRING)
+		self.pubkey_label.setReadOnly(True)
+
+		self.privkey_label.setText(self.DEFAULT_STRING)
+		self.privkey_label.setReadOnly(True)
+
+		self.conn_label.setText(self.DEFAULT_STRING)
+		self.conn_label.setReadOnly(True)
+
+		self.progress.setMaximum(self.PROGRESS_MAX)
+		self.progress.setValue(0)
+		self.progress.setTextVisible(False)
+
+	def set_layouts(self):
+		"""
+		Creates buttons, sets line edit default contents, creates layouts and adds elements to them, adds layouts to
+		main window
+		"""
 		select_button = QPushButton('Select PDF...', self)
 		select_button.clicked.connect(self.clicked_select_file)
 
@@ -127,26 +259,6 @@ class GUI(QMainWindow):
 		ip_label.setText("My IP:" + GUI.get_ip("public"))
 		ip_label.setReadOnly(True)
 
-		self.file_label.setText(self.DEFAULT_STRING)
-		self.file_label.setReadOnly(True)
-
-		self.sign1_label.setText(self.DEFAULT_STRING)
-		self.sign1_label.setReadOnly(True)
-
-		self.sign2_label.setText(self.DEFAULT_STRING)
-		self.sign2_label.setReadOnly(True)
-
-		self.conn_label.setText(self.DEFAULT_STRING)
-		self.conn_label.setReadOnly(True)
-
-		self.progress.setMaximum(self.PROGRESS_MAX)
-		self.progress.setValue(0)
-		self.progress.setTextVisible(False)
-
-		menubar = self.menuBar()
-		file_menu = menubar.addMenu('&File')
-		file_menu.addAction(exit_action)
-
 		widget = QWidget()
 
 		button_layout = QVBoxLayout()
@@ -159,8 +271,8 @@ class GUI(QMainWindow):
 		label_layout.setSpacing(6)
 
 		label_layout.addWidget(self.file_label)
-		label_layout.addWidget(self.sign1_label)
-		label_layout.addWidget(self.sign2_label)
+		label_layout.addWidget(self.pubkey_label)
+		label_layout.addWidget(self.privkey_label)
 		label_layout.addWidget(self.conn_label)
 
 		upper_menu_layout = QHBoxLayout()
@@ -179,6 +291,7 @@ class GUI(QMainWindow):
 		main_vbox_layout.addLayout(lower_menu_layout)
 		main_vbox_layout.addStretch(10)
 
+		screen = QDesktopWidget()
 		spacer = QSpacerItem(screen.width() / 5, screen.height() / 5, QSizePolicy.Expanding)
 		main_hbox_layout = QHBoxLayout()
 		main_hbox_layout.addSpacerItem(spacer)
@@ -188,14 +301,67 @@ class GUI(QMainWindow):
 		widget.setLayout(main_hbox_layout)
 		self.setCentralWidget(widget)
 
-		self.show()
-
 	def close_window(self):
+		"""
+		Closes main window and terminates ipc interface
+		"""
 		self.ipc_socket.shutdown(socket.SHUT_RDWR)
 		self.ipc_socket.close()
 		qApp.quit()
 
+	def start_ipc(self):
+		"""
+		Method to set up ipc interface
+		:return: If no connection can be established
+		"""
+		self.ipc_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		self.ipc_socket.bind((config.get("gui", "addr"), int(config.get("gui", "recv"))))
+		try:
+			self.ipc_socket.connect((config.get("gui", "addr"), int(config.get("gui", "port"))))
+		except OSError as err:
+			print("Connection error:", err)
+			return
+		thread = threading.Thread(target=self.ipc_receive)
+		thread.daemon = True
+		thread.start()
+
+	def ipc_send(self, mode):
+		"""
+		Method to send requests for receiving the head of the chain or adding a block to the chain
+		:param mode: 1 to request head of chain, 0 to add block to chain
+		"""
+		if mode == 1:
+			self.ipc_socket.send(b'\x11')
+			self.mutex.acquire()
+		elif mode == 0:
+			self.ipc_socket.send(b'\x12' + bytes(self.transmission.to_json(), "utf-8"))
+
+	def ipc_receive(self):
+		"""
+		Method to receive answers to sent requests via ipc (mode 21 for receiving head, mode 22 for adding block)
+		"""
+		while True:
+			data = self.ipc_socket.recv(4096)
+			data = str(data, "utf-8")
+			if len(data) > 1:
+				content = data[1:]
+
+			if data != "":
+				mode = int(bytes(data, "utf-8").hex()[0:2])
+				if mode == 21:
+					self.previous_hash = json.loads(content)
+					self.mutex.release()
+
+				if mode == 22:
+					print("Document successfully placed in Chain")
+
 	def update_progress_bar(self, line_edit, s):
+		"""
+		Updates value of progress bar and sets content of given line edit to s
+		:param line_edit: Given line edit of the main window
+		:param s: Value to be set as new content of given line edit
+		:return: True if s set as new content of line_edit, False if s is empty
+		"""
 		if not s:
 			if not line_edit.text() == self.DEFAULT_STRING:
 				line_edit.setText(self.DEFAULT_STRING)
@@ -212,14 +378,21 @@ class GUI(QMainWindow):
 			return True
 
 	def clicked_select_file(self):
+		"""
+		Opens a dialog window to select contract document and read it's path
+		"""
 		file = QFileDialog.getOpenFileName(filter='*.pdf')[0]
 
 		if file != "":
 			self.doc_hash = core.checksum(path=file)
-			print(self.doc_hash)
 		self.update_progress_bar(self.file_label, file)
 
 	def clicked_pubkey(self):
+		"""
+		Opens a dialog window to select a file from where to read in the public key and update progressbar and
+		corresponding line edit accordingly
+		:return: If public key is empty
+		"""
 		file = QFileDialog.getOpenFileName(filter='*.pub')[0]
 
 		if file != "":
@@ -228,80 +401,97 @@ class GUI(QMainWindow):
 			except ValueError as err:
 				print("unexpected public key", err)
 				return
-			print(self.pubkey)
-		self.update_progress_bar(self.sign1_label, file)
+		self.update_progress_bar(self.pubkey_label, file)
 
 	def clicked_privkey(self):
+		"""
+		Opens a dialog window to select a file from where to read in the private key and update progressbar and
+		corresponding line edit accordingly
+		:return: If private key is empty
+		"""
 		file = QFileDialog.getOpenFileName(filter='*')[0]
 
-		# checksum calling crashes program
 		if file != "":
 			try:
 				self.privkey = GUI.get_privkey(file)
 			except ValueError as err:
 				print("unexpected private key", err)
 				return
-			print(self.privkey)
-		self.update_progress_bar(self.sign2_label, file)
+		self.update_progress_bar(self.privkey_label, file)
 
 	def connect(self):
-		# establish connection with other client
+		"""
+		Opens dialog box for the user to type in ip address used to connect to or receive from partner in network,
+		calling corresponding master_send or slave_receive functions, or setting up a single party contract block in
+		case of own ip address
+		"""
 		mode = ModeDialog()
 		mode.exec_()
 		master = mode.is_master()
 		ip = mode.get_text()
 		own_ip = GUI.get_ip("public")
-		if own_ip == ip:
 
-			self.ipc_send(1)
-			privkey_list = [self.privkey]
-			pubkey_list = [self.pubkey]
-			self.doc_hash = str(self.doc_hash)
-			self.transmission = core.produce_transmission_fully(previous_hash=self.previous_hash, private_keys=privkey_list, pub_keys=pubkey_list, document_hash=self.doc_hash)
-			trans_hash = signing.unsign(self.transmission.transmission_hash, privkey_list)
-			if not self.transmission.get_transmission_hash() == trans_hash:
-				self.transmission = None
-				return
-			else:
-				self.update_progress_bar(self.conn_label, ip)
-				print("block validated: correct")
+		if self.inputs_valid() and own_ip == ip:
+			self.single_party_contract(ip)
+
 		elif self.inputs_valid() and GUI.validate_ip(ip):
 			if master:
-				print("master send", ip)
-				self.master_send(master, ip)
+				self.master_send(ip)
 			else:
-				print("slave receive", ip)
 				self.slave_receive(ip)
 
 		mode.close()
 
-	def master_send(self, master, ip):
+	def single_party_contract(self, ip):
+		"""
+		Creates a block from local document hash, private and public key and transmission hash of the previous block
+		received through ipc interface. On success updates progress bar.
+		:param ip: Own IP address to update corresponding line edit upon successful creation of block
+		:return: If block transmission hash differs from unsigned transmission hash
+		"""
+		self.ipc_send(1)
+		privkey_list = [self.privkey]
+		pubkey_list = [self.pubkey]
+		self.doc_hash = str(self.doc_hash)
+		self.transmission = core.produce_transmission_fully(previous_hash=self.previous_hash, private_keys=privkey_list, pub_keys=pubkey_list, document_hash=self.doc_hash)
+		trans_hash = signing.unsign(self.transmission.transmission_hash, privkey_list)
+
+		if not self.transmission.get_transmission_hash() == trans_hash:
+			self.transmission = None
+			return
+		else:
+			print("Block valid")
+			self.update_progress_bar(self.conn_label, ip)
+
+	def master_send(self, ip):
+		"""
+		Initiates communication as master, sending temporary transmission object to and receiving it from partner in two
+		stages. In the first stage the document is signed by both partners, in the second stage the transmission hash is
+		signed by both partners and the progress bar is updated afterwards.
+		:param ip: IP address of partner to send temporary blocks to
+		:return: If connection fails
+		"""
 		own_ip = GUI.get_ip("public")
 
 		if GUI.validate_ip(ip):
-			# connect to partner client
 			if not ip == own_ip:
-				print("stage 1:")
+
+				# stage 1 start
 				temp_trans = core.produce_transmission_stage_one(self.privkey, self.pubkey, self.doc_hash)
 				trans_json = temp_trans.to_json()
+
 				if GUI.send_to_partner(ip, trans_json):
 					try:
 						received_trans = GUI.receive_from_partner(own_ip)
 					except ValueError as err:
 						print("Connection failed:", err)
 						return
-					print("stage 2:")
-					#############
+
+					# stage 2 start
 					self.ipc_send(1)
-					# blocking until received head
-					# print("received_trans:")
-					# print(received_trans)
-					# trans_stage2 = transmission.from_json(self.previous_block)
 					temp = core.Transmission.from_json(received_trans)
 					temp.hash = str(temp.hash)
 					temp.signed_hash = str(temp.signed_hash)
-					# previous_hash = self.previous_hash
-					# print("temp:", temp.to_json())
 					temp_trans2 = core.produce_transmission_stage_two(previous_hash=self.previous_hash, private_key=self.privkey, transmission=temp, master=True)
 					trans_json2 = temp_trans2.to_json()
 					GUI.send_to_partner(ip, trans_json2)
@@ -311,19 +501,22 @@ class GUI(QMainWindow):
 						print("Connection failed:", err)
 						return
 					self.transmission = core.Transmission.from_json(received_trans)
-
 					self.update_progress_bar(self.conn_label, ip)
 
 				else:
 					return
-			else:
-				print("That's your own IP dude...")
-				return
 		else:
 			ip = ""
 			self.update_progress_bar(self.conn_label, ip)
 
 	def slave_receive(self, ip):
+		"""
+		Initiates communication as slave, receiving temporary transmission object from and sending it to partner in two
+		stages. In the first stage the document is signed by both partners, in the second stage the transmission hash is
+		signed by both partners and the progress bar is updated afterwards.
+		:param ip: IP address of partner to send temporary blocks to
+		:return: If connection fails
+		"""
 		own_ip = GUI.get_ip("public")
 		# stage 1 start
 		received_json = GUI.receive_from_partner(own_ip)
@@ -341,27 +534,40 @@ class GUI(QMainWindow):
 		self.update_progress_bar(self.conn_label, ip)
 
 	def clicked_add_to_layer(self):
-	# put block into db if valid
-		if self.inputs_valid():
-			print(self.transmission.to_json())
+		"""
+		Adds the created block via ipc interface to the chain if inputs are valid
+		"""
+		if self.inputs_valid() and self.conn_label != self.DEFAULT_STRING:
 			self.ipc_send(0)
 			self.progress.setValue(self.PROGRESS_MAX)
 
 	def inputs_valid(self):
-		if self.file_label != self.DEFAULT_STRING and self.sign1_label != self.DEFAULT_STRING and self.sign2_label != self.DEFAULT_STRING and self.conn_label != self.DEFAULT_STRING:
-			return True
+		"""
+		Checks if relevant inputs are not empty and keys are correct
+		:return: True if document, public key and private key are set and matching, False otherwise
+		"""
+		if self.file_label != self.DEFAULT_STRING and self.pubkey_label != self.DEFAULT_STRING and self.privkey_label != self.DEFAULT_STRING:
+			if signing.unsign(signing.sign(self.doc_hash, [self.pubkey]), [self.privkey]) == str(self.doc_hash):
+				return True
+			else:
+				print("Keys are not matching")
+			return False
 		else:
 			return False
 
 	@staticmethod
 	def get_privkey(path):
+		"""
+		Method to read private key from file and save it in a string
+		:param path: Path to private key file
+		:return: Private key as string
+		"""
 		file = open(path, "r")
 		write_flag = False
 		privkey = ""
 		for line in file:
 			if "PRIVATE" in line and not write_flag:
 				write_flag = True
-				# continue
 			elif "PRIVATE" in line and write_flag:
 				privkey += line
 				write_flag = False
@@ -373,31 +579,26 @@ class GUI(QMainWindow):
 
 	@staticmethod
 	def get_pubkey(path):
+		"""
+		Method to read private key from file and save it in a string
+		:param path: Path to public key file
+		:return: Public key as string
+		"""
 		file = open(path, "r")
-		write_flag = False
 		pubkey = ""
 		for line in file:
-			"""if not write_flag:
-				if "Comment" in line:
-					write_flag = True
-					continue
-				elif "ssh-rsa" in line:
-					write_flag = True
-			elif "END" in line:
-				pubkey += line
-				write_flag = False
-			if write_flag:
-				pubkey += line"""
 			pubkey += line
-		if write_flag:
-			pubkey = pubkey.split(" ")[1]
 		if not pubkey:
 			raise ValueError
 		return pubkey
 
-	"""relocate functions to network module"""
 	@staticmethod
 	def get_ip(mode):
+		"""
+		Method to get own public or local IP address
+		:param mode: public for public IP, local for local IP
+		:return: Public or local IP depending on mode, or None otherwise
+		"""
 		if mode == "public":
 			return get('https://api.ipify.org').text
 		elif mode == "local":
@@ -407,6 +608,11 @@ class GUI(QMainWindow):
 
 	@staticmethod
 	def validate_ip(s):
+		"""
+		Checks if string has a valid IP address structure
+		:param s: Input string
+		:return: True for valid IP address, False for invalid IP address
+		"""
 		a = s.split('.')
 		if len(a) != 4:
 			return False
@@ -420,98 +626,61 @@ class GUI(QMainWindow):
 
 	@staticmethod
 	def send_to_partner(ip, data):
-		PORT = 10150
+		"""
+		Method to send data string to given IP address via TCP
+		:param ip: IP address to connect to
+		:param data: String of data to be sent
+		:return: True if data sent, False otherwise
+		"""
 		byte = bytes(data, "utf-8")
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		print("connecting to partner with ip:", ip)
 		try:
-			s.connect((ip, PORT))
+			s.connect((ip, int(config.get("comm", "port"))))
 		except OSError as err:
 			print("Could not connect:", err)
-			return s.close()
-		# print("sending message", data)
+			s.close()
+			return False
 		s.send(byte)
 		s.close()
 		return True
 
 	@staticmethod
 	def receive_from_partner(ip):
-		PORT = 10150
-		BUFFER_SIZE = 4096
+		"""
+		Method to receive data from given IP address
+		:param ip: IP address to receive data from
+		:return: Received data as String
+		"""
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.bind(("0.0.0.0", PORT))
+		s.bind(("0.0.0.0", int(config.get("comm", "port"))))
 		s.listen(1)
 		data_str = ""
 
 		conn, addr = s.accept()
-		print('Connection address:', addr)
 		while 1:
-			data = conn.recv(BUFFER_SIZE)
+			data = conn.recv(4096)
 			if not data:
 				break
-			# print("received data:", data.decode("utf-8"))
 			data_str += data.decode("utf-8")
 		conn.close()
 		if not data_str:
 			raise ValueError
 		return data_str
 
-	def start_ipc(self):
-		self.ipc_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		self.ipc_socket.bind((config.get("gui", "addr"), 9005))
-		try:
-			self.ipc_socket.connect((config.get("gui", "addr"), int(config.get("gui", "port"))))
-		except OSError as err:
-			print("error:", err)
-			return
-		thread = threading.Thread(target=self.ipc_receive)
-		thread.daemon = True
-		thread.start()
 
-	def ipc_send(self, mode):
-		# 1 for get head 0 for attach block
-		# print("type of mode", type(mode))
-		if mode == 1:
-			self.ipc_socket.send(b'\x11')
-			self.mutex.acquire()
-		elif mode == 0:
-			self.ipc_socket.send(b'\x12' + bytes(self.transmission.to_json(), "utf-8"))
-
-	def ipc_receive(self):
-
-		while True:
-			data = self.ipc_socket.recv(4096)
-
-			data = str(data, "utf-8")
-			# print("data: ", data)
-
-			if len(data) > 1:
-				content = data[1:]
-				# print("content: ", content)
-
-			if data != "":
-				mode = int(bytes(data, "utf-8").hex()[0:2])
-				# print("mode: ", mode)
-
-				if mode == 21:
-					self.previous_hash = json.loads(content)
-					# print("Head of Chain: ", self.previous_hash)
-					self.mutex.release()
-
-				if mode == 22:  # Ack from Peer
-					print("Document successfully placed in Chain")
-
-
-
+# Stylesheet for background of main window
 stylesheet = """GUI {
-    border-image: url("GUI/blockchain.png"); 
-    background-repeat: no-repeat; 
-    background-position: center;}"""
+	border-image: url("GUI/blockchain.png");
+	background-repeat: no-repeat;
+	background-position: center;}"""
+
 
 def start():
-	#if __name__ == '__main__':
-		app = QApplication(sys.argv)
-		app.setStyleSheet(stylesheet)
-		ex = GUI()
-		sys.exit(app.exec_())
+	"""
+	Starts GUI
+	"""
+	app = QApplication(sys.argv)
+	app.setStyleSheet(stylesheet)
+	ex = GUI()
+	sys.exit(app.exec_())
 
