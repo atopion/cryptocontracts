@@ -70,7 +70,7 @@ class Transmission:
         transmission.timestamp = x["timestamp"]
         transmission.pub_keys = x["pub_keys"]
         transmission.hash = x["hash"]
-        transmission.signed_hash = x["hash"]
+        transmission.signed_hash = x["signed_hash"]
         transmission.transmission_hash = x["transmission_hash"]
         return transmission
 

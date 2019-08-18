@@ -17,7 +17,7 @@ def sign(value, keys):
 	signed_value = value.encode('utf-8')
 	for key in keys:
 		cipher = PKCS1_OAEP.new(RSA.import_key(key))
-		if len(signed_value)<MAX_ENCRYPT_LENGTH:
+		if len(signed_value) < MAX_ENCRYPT_LENGTH:
 			signed_value = cipher.encrypt(signed_value)
 		else:
 			signed_value_parts = bytes('', 'utf-8')

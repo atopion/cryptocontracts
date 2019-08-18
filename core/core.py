@@ -1,15 +1,10 @@
-import random
 import os
 import time
 import datetime
-
 from requests import get
-
 from core.cryptoHashes import CryptoHashes
-
-from core import core, signing
+from core import signing
 from core.transmission import Transmission
-from network import registry
 
 
 ''' Nothing jet
@@ -70,20 +65,16 @@ def compare(checksum_a, checksum_b):
     return False
 
 
-def produce_transmission_initial(previous_hash: str, pub_keys: list, document_hash: str, signed_document_hash: str, transmission_hash: str):
-    if previous_hash is None or document_hash is None or pub_keys is None or len(pub_keys) == 0:
-        return None
-
-    transmission = Transmission()
-    transmission.previous_hash = previous_hash
-    transmission.timestamp = hex(int(time.time()))[2:]
-    transmission.pub_keys = pub_keys
-    transmission.hash = document_hash
-    transmission.signed_hash = signed_document_hash
-    transmission.transmission_hash = transmission_hash
-    return transmission
-
 def produce_transmission_dummy(previous_hash: str, pub_keys: list, document_hash: str, signed_document_hash: str, transmission_hash: str):
+    """
+    Produces dummy transmission object for testing. All parameters are set manually (no signing process)
+    :param previous_hash: Hash of previous block
+    :param pub_keys: Public Key list of signing entity
+    :param document_hash: Checksum of the document
+    :param signed_document_hash: Signed checksum of the document
+    :param transmission_hash: Hash of the complete transmission
+    :return:
+    """
     if previous_hash is None or document_hash is None or pub_keys is None or len(pub_keys) == 0:
         return None
 
@@ -98,6 +89,14 @@ def produce_transmission_dummy(previous_hash: str, pub_keys: list, document_hash
 
 
 def produce_transmission_fully(previous_hash: str, private_keys: list, pub_keys: list, document_hash: str):
+    """
+    Produces a full transmission object
+    :param previous_hash: Hash of previous block
+    :param private_keys: Private Key list of signing entities
+    :param pub_keys: Public Key list of signing entities
+    :param document_hash: Checksum of the document
+    :return: Complete transmission object
+    """
     if previous_hash is None or document_hash is None or pub_keys is None or len(pub_keys) == 0:
         return None
 
@@ -162,6 +161,11 @@ def produce_transmission_stage_two(private_key: str, transmission: Transmission,
 
 
 def verify_transmission(transmission: Transmission):
+    """
+    Verifies transmission object is not empty
+    :param transmission:
+    :return:
+    """
     if transmission is None or not transmission.is_valid():
         return False
 
@@ -171,11 +175,8 @@ def verify_transmission(transmission: Transmission):
     if not transmission.check_self():
         return False
 
-    #for key in transmission.pub_keys:
-    #    if not registry.key_exists(key):
-    #        return False
-
     return True
+
 
 def network_log(*argv):
     text = ""
