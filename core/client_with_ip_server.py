@@ -26,6 +26,7 @@ class Client:
 
     def react_to_sync_request(self, conn):
         t = storage.get_block(storage.get_head())
+
         x = {
             "public_key": signing.OWN_PUBLIC_KEY,
             "transmission_hash": t.unsigned_transmission_hash(),
