@@ -1,3 +1,8 @@
+"""
+
+@author Tobias Haar
+
+"""
 import sys
 from requests import get
 import socket
