@@ -7,11 +7,20 @@ import os
 db = plyvel.DB(os.getenv('DB_PATH_OVERRIDE', config.get('database', 'path')), create_if_missing=True)
 
 def get_head():
+	'''
+	Get the blockId of the newest block
+	'''
 	return db.get('head'.encode('utf-8')).decode('utf-8')
 def _set_head(blockId):
+	'''
+	Internal function: Set newest blockId
+	'''
 	db.put('head'.encode('utf-8'), blockId.encode('utf-8'))
 
 def put_block(block):
+	'''
+	Put a core/Transmission block into the chain
+	'''
 	if not isinstance(block, transmission.Transmission):
 		raise TypeError('Not a Core.Transmission block object')
 
@@ -21,16 +30,25 @@ def put_block(block):
 	_set_head(block.transmission_hash)
 	
 def get_block(blockId):
+	'''
+	Retrieve a block by its ID
+	'''
 	block = db.get(blockId.encode('utf-8'))
 	if block is None:
 		raise KeyError('blockId does not exist: ' + blockId)
 	return transmission.Transmission.from_json(block.decode('utf-8'))
 
 def block_exists(blockId):
+	'''
+	Test if block with Id blockId exists in the chain.
+	'''
 	return db.get(blockId.encode('utf-8')) is not None
 
 
 def get_subchain(targetBlockId):
+	'''
+	Retrieve a subchain from the current head to targetBlockId
+	'''
 	target = get_block(targetBlockId)
 	if target is None:
 		raise KeyError('Block does not exist: ' + targetBlockId)
