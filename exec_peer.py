@@ -11,9 +11,8 @@ from core import core, client_with_ip_server
 import sys
 
 
-
 # This program creates a peer object and connects to the other peers in the network
-# It can be started with prededined test blocks in the chain
+# It can be started with predefined test blocks in the chain
 # For ordinary use do not add parameters for execution, the system is then started with the content in the database
 # For predefined test blocks give 2 parameters: first a number between 1 and 4 indicating the test case,
 # and second a number that is 1 or higher representing the test unit.
@@ -64,13 +63,12 @@ if __name__ == '__main__':
                 
         # predefined blocks for storing in database
         prev = storage.get_block(storage.get_head())
-        t1 = core.core.produce_transmission_dummy(prev.transmission_hash, ["pub_a", "pub_b"], "document-1", "document-1_signed", "t1_trans_hash")
-        t2 = core.core.produce_transmission_dummy(t1.transmission_hash, ["pub_c", "pub_d"], "document-2", "document-2_signed", "t2_trans_hash")
-        t3 = core.core.produce_transmission_dummy(t2.transmission_hash, ["pub_e", "pub_f"], "document-3", "document-3_signed", "t3_trans_hash")
-    
-       
+        t1 = core.produce_transmission_dummy(prev.transmission_hash, ["pub_a", "pub_b"], "document-1", "document-1_signed", "t1_trans_hash")
+        t2 = core.produce_transmission_dummy(t1.transmission_hash, ["pub_c", "pub_d"], "document-2", "document-2_signed", "t2_trans_hash")
+        t3 = core.produce_transmission_dummy(t2.transmission_hash, ["pub_e", "pub_f"], "document-3", "document-3_signed", "t3_trans_hash")
+
         # test cases
-        if  test == 1:
+        if test == 1:
             if unit == 1:
                 storage.put_block(t1)
             else:
@@ -106,14 +104,3 @@ if __name__ == '__main__':
     peer = client_with_ip_server.Client(scope=scope, output=output)
     peer.client.connect_to_net()
 
-stylesheet = """
-    GUI {
-    border-image: url("blockchain.png"); 
-    background-repeat: no-repeat; 
-    background-position: center;}"""
-
-"""if __name__ == '__main__':
-    app = gui.QApplication(sys.argv)
-    app.setStyleSheet(stylesheet)
-    ex = gui.GUI()
-    sys.exit(app.exec_())"""
